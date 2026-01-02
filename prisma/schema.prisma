@@ -1,0 +1,85 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Trip {
+  id           String              @id @default(cuid())
+  name         String
+  destination  String
+  startDate    DateTime
+  endDate      DateTime
+  currentRound Int                 @default(1)
+  status       String              @default("DRAFT")
+  requirements String?             @db.Text
+  reviewToken  String?             @unique
+  ideas        TripIdea[]
+  suggestions  ClientSuggestion[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model TripIdea {
+  id           String          @id @default(cuid())
+  tripId       String
+  trip         Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  placeId      String
+  category     String
+  state        String
+  day          Int?
+  mealSlot     String?
+  agentNotes   String?         @db.Text
+  status       String          @default("SUGGESTED")
+  roundCreated Int             @default(1)
+  suggestedBy  String          @default("AGENT")
+  reactions    IdeaReaction[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  
+  @@index([tripId])
+  @@index([placeId])
+}
+
+model GooglePlaceCache {
+  placeId          String   @id
+  displayName      String
+  formattedAddress String
+  lat              Float
+  lng              Float
+  googleMapsUri    String
+  types            String[]
+  rating           Float?
+  cachedAt         DateTime @default(now())
+  expiresAt        DateTime
+  
+  @@index([expiresAt])
+}
+
+model IdeaReaction {
+  id          String   @id @default(cuid())
+  ideaId      String
+  idea        TripIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  reaction    String
+  clientNotes String?  @db.Text
+  createdAt   DateTime @default(now())
+  
+  @@index([ideaId])
+}
+
+model ClientSuggestion {
+  id              String   @id @default(cuid())
+  tripId          String
+  trip            Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  suggestionText  String   @db.Text
+  round           Int
+  status          String   @default("PENDING")
+  resolvedPlaceId String?
+  agentNotes      String?  @db.Text
+  createdAt       DateTime @default(now())
+  
+  @@index([tripId])
+}
