@@ -20,7 +20,7 @@ interface TripIdea {
   state: string;
   day: number | null;
   mealSlot: string | null;
-  agentNotes: string | null;
+  agentNotes: string | null;``
   reactions: IdeaReaction[];
 }
 
@@ -82,21 +82,25 @@ export default function ReviewPage() {
       });
       setReactions(existingReactions);
 
-      // Fetch place details
-      const placeIds = [...new Set((data.trip.ideas || []).map((idea: TripIdea) => idea.placeId))];
-      const places: Record<string, PlaceCache> = {};
+      // Fetch place details for each unique placeId
+const placeIds = [...new Set(ideas.map((idea) => idea.placeId))];
+const places: Record<string, any> = {};
 
-      for (const placeId of placeIds) {
-        try {
-          const placeResponse = await fetch(`/api/places/${placeId}`);
-          const placeData = await placeResponse.json();
-          if (placeData.place) {
-            places[placeId] = placeData.place;
-          }
-        } catch (error) {
-          console.error(`Error fetching place ${placeId}:`, error);
-        }
-      }
+for (const placeId of placeIds) {
+  if (typeof placeId !== 'string') continue; // Type guard
+  
+  try {
+    const placeResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL}/api/places/${placeId}`
+    );
+    const placeData = await placeResponse.json();
+    if (placeData.place) {
+      places[placeId] = placeData.place;
+    }
+  } catch (error) {
+    console.error(`Error fetching place ${placeId}:`, error);
+  }
+}
 
       setPlacesCache(places);
     } catch (error) {
