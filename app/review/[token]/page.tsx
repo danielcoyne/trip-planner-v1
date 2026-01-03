@@ -37,6 +37,8 @@ interface PlaceCache {
   formattedAddress: string;
   rating: number | null;
   googleMapsUri: string;
+  lat: number;
+  lng: number;
 }
 
 export default function ReviewPage() {
@@ -68,11 +70,12 @@ export default function ReviewPage() {
 
       const data = await response.json();
       setTrip(data.trip);
-      setIdeas(data.trip.ideas || []);
+      const tripIdeas = data.trip.ideas || [];
+      setIdeas(tripIdeas);
 
       // Load existing reactions
       const existingReactions: Record<string, { reaction: string; notes: string }> = {};
-      data.trip.ideas?.forEach((idea: TripIdea) => {
+      tripIdeas.forEach((idea: TripIdea) => {
         if (idea.reactions && idea.reactions.length > 0) {
           const reaction = idea.reactions[0];
           existingReactions[idea.id] = {
@@ -84,24 +87,26 @@ export default function ReviewPage() {
       setReactions(existingReactions);
 
       // Fetch place details for each unique placeId
-const placeIds = [...new Set(ideas.map((idea) => idea.placeId))];
-const places: Record<string, any> = {};
+      const placeIds = [...new Set(tripIdeas.map((idea: TripIdea) => idea.placeId))];
+      const places: Record<string, PlaceCache> = {};
 
-for (const placeId of placeIds) {
-  if (typeof placeId !== 'string') continue; // Type guard
-  
-  try {
-    const placeResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL}/api/places/${placeId}`
-    );
-    const placeData = await placeResponse.json();
-    if (placeData.place) {
-      places[placeId] = placeData.place;
-    }
-  } catch (error) {
-    console.error(`Error fetching place ${placeId}:`, error);
-  }
-}
+      for (const placeId of placeIds) {
+        if (typeof placeId !== 'string') continue;
+
+        try {
+          const placeResponse = await fetch(`/api/places/${placeId}`);
+          const placeData = await placeResponse.json();
+          if (placeData.place) {
+            // Add placeId to the place object
+            places[placeId] = {
+              ...placeData.place,
+              placeId: placeId
+            };
+          }
+        } catch (error) {
+          console.error(`Error fetching place ${placeId}:`, error);
+        }
+      }
 
       setPlacesCache(places);
     } catch (error) {
