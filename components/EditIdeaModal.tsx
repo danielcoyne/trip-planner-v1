@@ -126,13 +126,13 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
-            <h2 className="text-2xl font-bold">Edit: {placeName}</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Edit: {placeName}</h2>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl"
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl"
             >
               ×
             </button>
@@ -141,13 +141,13 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Category */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Category
               </label>
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 required
               >
                 <option value="RESTAURANT">Restaurant</option>
@@ -161,13 +161,13 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
 
             {/* State */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 State
               </label>
               <select
                 value={formData.state}
                 onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 required
               >
                 <option value="ANCHOR">Anchor (must-do)</option>
@@ -178,7 +178,7 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
 
             {/* Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Date (optional)
               </label>
               <input
@@ -187,10 +187,10 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
                 max={formatDateForInput(tripEndDate)}
                 value={formData.selectedDate}
                 onChange={(e) => handleDateChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
               {formData.selectedDate && (
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                   {formatDateDisplay(formData.selectedDate)} (Day {dateToDayNumber(formData.selectedDate)})
                 </p>
               )}
@@ -199,27 +199,27 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
             {/* End Date (only show if date is selected) */}
             {formData.selectedDate !== '' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   End Date (optional)
                 </label>
-                <p className="text-xs text-gray-500 mb-2">For multi-day stays (e.g., hotels)</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">For multi-day stays (e.g., hotels)</p>
                 <input
                   type="date"
                   min={formData.selectedDate}
                   max={formatDateForInput(tripEndDate)}
                   value={formData.selectedEndDate}
                   onChange={(e) => handleEndDateChange(e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    endDateError ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+                    endDateError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
                   }`}
                 />
                 {formData.selectedEndDate && (
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                     {formatDateRangeDisplay(formData.selectedDate, formData.selectedEndDate)}
                   </p>
                 )}
                 {endDateError && (
-                  <p className="mt-1 text-sm text-red-600">{endDateError}</p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{endDateError}</p>
                 )}
               </div>
             )}
@@ -227,13 +227,13 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
             {/* Meal Slot (only show for restaurants) */}
             {formData.category === 'RESTAURANT' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Meal Slot (optional)
                 </label>
                 <select
                   value={formData.mealSlot}
                   onChange={(e) => setFormData({ ...formData, mealSlot: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="">Not specified</option>
                   <option value="BREAKFAST">Breakfast</option>
@@ -245,13 +245,13 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
 
             {/* Agent Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Agent Notes (WHY this place matters)
               </label>
               <textarea
                 value={formData.agentNotes}
                 onChange={(e) => setFormData({ ...formData, agentNotes: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                 rows={4}
                 placeholder="Tell the client why this place is special..."
               />
@@ -268,7 +268,7 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
+                className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
               >
                 Cancel
               </button>

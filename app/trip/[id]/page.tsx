@@ -183,16 +183,16 @@ export default function TripDetailPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
-        <div className="text-center">Loading...</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
+        <div className="text-center text-gray-900 dark:text-white">Loading...</div>
       </div>
     );
   }
 
   if (!trip) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
-        <div className="text-center">Trip not found</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
+        <div className="text-center text-gray-900 dark:text-white">Trip not found</div>
       </div>
     );
   }
@@ -272,9 +272,9 @@ export default function TripDetailPage({
     if (!place) return null;
 
     const stateColors = {
-      ANCHOR: 'bg-red-50 border-red-200',
-      FLEXIBLE: 'bg-blue-50 border-blue-200',
-      SPONTANEOUS: 'bg-green-50 border-green-200',
+      ANCHOR: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
+      FLEXIBLE: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+      SPONTANEOUS: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
     };
 
     // Multi-day range text
@@ -289,13 +289,13 @@ export default function TripDetailPage({
       >
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
-            <h3 className="font-semibold text-lg">
+            <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
               {stateEmojis[idea.state as keyof typeof stateEmojis]} {place.displayName}
               {dayRangeText && (
-                <span className="text-sm font-normal text-gray-600 ml-2">{dayRangeText}</span>
+                <span className="text-sm font-normal text-gray-600 dark:text-gray-400 ml-2">{dayRangeText}</span>
               )}
             </h3>
-            <p className="text-sm text-gray-600">{place.formattedAddress}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">{place.formattedAddress}</p>
           </div>
           <div className="flex gap-2 ml-4">
             <button
@@ -313,7 +313,7 @@ export default function TripDetailPage({
           </div>
         </div>
 
-        <div className="space-y-2 text-sm">
+        <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
           <div className="flex gap-4">
             <span className="font-medium">Category:</span>
             <span>{idea.category}</span>
@@ -331,9 +331,9 @@ export default function TripDetailPage({
             </div>
           )}
           {idea.agentNotes && (
-            <div className="mt-3 p-3 bg-white rounded border border-gray-200">
-              <p className="font-medium text-sm mb-1">Agent Notes:</p>
-              <p className="text-gray-700">{idea.agentNotes}</p>
+            <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+              <p className="font-medium text-sm mb-1 text-gray-900 dark:text-white">Agent Notes:</p>
+              <p className="text-gray-700 dark:text-gray-300">{idea.agentNotes}</p>
             </div>
           )}
         </div>
@@ -342,7 +342,7 @@ export default function TripDetailPage({
           href={place.googleMapsUri}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-3 inline-block text-blue-600 hover:underline text-sm"
+          className="mt-3 inline-block text-blue-600 dark:text-blue-400 hover:underline text-sm"
         >
           View on Google Maps →
         </a>
@@ -351,40 +351,40 @@ export default function TripDetailPage({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => router.push('/')}
-            className="mb-4 text-blue-600 hover:underline"
+            className="mb-4 text-blue-600 dark:text-blue-400 hover:underline"
           >
             ← Back to Trips
           </button>
-          <h1 className="text-4xl font-bold mb-2">{trip.name}</h1>
-          <p className="text-xl text-gray-600">
+          <h1 className="text-4xl font-bold mb-2 text-gray-900 dark:text-white">{trip.name}</h1>
+          <p className="text-xl text-gray-600 dark:text-gray-300">
             {trip.destination} • {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
           </p>
         </div>
 
         {/* Client Requirements */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-2">Client Requirements</h2>
-          <p className="text-gray-700">{trip.requirements}</p>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 border border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Client Requirements</h2>
+          <p className="text-gray-700 dark:text-gray-300">{trip.requirements}</p>
         </div>
 
         {/* Review Link Section */}
-        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-3">Share with Client</h2>
+        <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Share with Client</h2>
           {reviewUrl ? (
             <div>
-              <p className="text-sm text-gray-600 mb-2">Copy this link to share with your client:</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Copy this link to share with your client:</p>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={reviewUrl}
                   readOnly
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md bg-white"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
                 <button
                   onClick={() => {
@@ -409,14 +409,14 @@ export default function TripDetailPage({
 
         {/* Tabs */}
         <div className="mb-6">
-          <div className="border-b border-gray-200">
+          <div className="border-b border-gray-200 dark:border-gray-700">
             <div className="flex gap-8">
               <button
                 onClick={() => setActiveTab('ideas')}
                 className={`pb-4 px-2 font-medium ${
                   activeTab === 'ideas'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-600 hover:text-gray-800'
+                    ? 'border-b-2 border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
                 }`}
               >
                 Ideas ({ideas.length})
@@ -425,8 +425,8 @@ export default function TripDetailPage({
                 onClick={() => setActiveTab('feedback')}
                 className={`pb-4 px-2 font-medium relative ${
                   activeTab === 'feedback'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-600 hover:text-gray-800'
+                    ? 'border-b-2 border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
                 }`}
               >
                 Client Feedback
@@ -440,8 +440,8 @@ export default function TripDetailPage({
                 onClick={() => setActiveTab('map')}
                 className={`pb-4 px-2 font-medium ${
                   activeTab === 'map'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-600 hover:text-gray-800'
+                    ? 'border-b-2 border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
                 }`}
               >
                 Map
@@ -454,7 +454,7 @@ export default function TripDetailPage({
         {activeTab === 'ideas' && (
           <div>
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Trip Ideas</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Trip Ideas</h2>
               <button
                 onClick={() => setShowAddModal(true)}
                 className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
@@ -464,8 +464,8 @@ export default function TripDetailPage({
             </div>
 
             {ideas.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg">
-                <p className="text-gray-500 mb-4">No ideas yet. Start adding some!</p>
+              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <p className="text-gray-500 dark:text-gray-400 mb-4">No ideas yet. Start adding some!</p>
               </div>
             ) : (
               <div className="space-y-8">
@@ -476,7 +476,7 @@ export default function TripDetailPage({
 
                   return (
                     <div key={day.number}>
-                      <h3 className="text-xl font-bold mb-4 text-gray-900">
+                      <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
                         Day {day.number} - {day.formatted}
                       </h3>
                       <div className="grid gap-4">
@@ -489,7 +489,7 @@ export default function TripDetailPage({
                 {/* Unassigned Ideas */}
                 {unassignedIdeas.length > 0 && (
                   <div>
-                    <h3 className="text-xl font-bold mb-4 text-gray-700">
+                    <h3 className="text-xl font-bold mb-4 text-gray-700 dark:text-gray-300">
                       Ideas Not Yet Assigned to Days
                     </h3>
                     <div className="grid gap-4">

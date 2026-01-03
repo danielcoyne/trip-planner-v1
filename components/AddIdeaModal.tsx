@@ -158,13 +158,13 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Add Trip Idea</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Add Trip Idea</h2>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl"
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl"
             >
               ×
             </button>
@@ -173,7 +173,7 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Place Search */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Search for a place *
               </label>
               <PlaceSearch
@@ -181,22 +181,22 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
                 placeholder="Search restaurants, attractions, hotels..."
               />
               {selectedPlace && (
-                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="font-medium text-blue-900">{selectedPlace.displayName}</div>
-                  <div className="text-sm text-blue-700">{selectedPlace.formattedAddress}</div>
+                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="font-medium text-blue-900 dark:text-blue-100">{selectedPlace.displayName}</div>
+                  <div className="text-sm text-blue-700 dark:text-blue-300">{selectedPlace.formattedAddress}</div>
                 </div>
               )}
             </div>
 
             {/* Category */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Category *
               </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="RESTAURANT">Restaurant</option>
                 <option value="ATTRACTION">Attraction</option>
@@ -209,13 +209,13 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
 
             {/* State */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Intent State *
               </label>
               <select
                 value={state}
                 onChange={(e) => setState(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="ANCHOR">Anchor - Must-do, time-sensitive</option>
                 <option value="FLEXIBLE">Flexible - Do if nearby</option>
@@ -225,7 +225,7 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
 
             {/* Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Date (optional)
               </label>
               <input
@@ -234,10 +234,10 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
                 max={formatDateForInput(tripEndDate)}
                 value={selectedDate}
                 onChange={(e) => handleDateChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
               {selectedDate && (
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                   {formatDateDisplay(selectedDate)} (Day {dateToDayNumber(selectedDate)})
                 </p>
               )}
@@ -246,27 +246,27 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
             {/* End Date (only show if date is selected) */}
             {selectedDate !== '' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   End Date (optional)
                 </label>
-                <p className="text-xs text-gray-500 mb-2">For multi-day stays (e.g., hotels)</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">For multi-day stays (e.g., hotels)</p>
                 <input
                   type="date"
                   min={selectedDate}
                   max={formatDateForInput(tripEndDate)}
                   value={selectedEndDate}
                   onChange={(e) => handleEndDateChange(e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    endDateError ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+                    endDateError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
                   }`}
                 />
                 {selectedEndDate && (
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                     {formatDateRangeDisplay(selectedDate, selectedEndDate)}
                   </p>
                 )}
                 {endDateError && (
-                  <p className="mt-1 text-sm text-red-600">{endDateError}</p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{endDateError}</p>
                 )}
               </div>
             )}
@@ -274,13 +274,13 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
             {/* Meal Slot (only show for restaurants) */}
             {category === 'RESTAURANT' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Meal Slot (optional)
                 </label>
                 <select
                   value={mealSlot}
                   onChange={(e) => setMealSlot(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="">None</option>
                   <option value="BREAKFAST">Breakfast</option>
@@ -293,7 +293,7 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
 
             {/* Agent Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Your Notes (Why this place?)
               </label>
               <textarea
@@ -301,7 +301,7 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
                 onChange={(e) => setAgentNotes(e.target.value)}
                 rows={4}
                 placeholder="e.g., This trattoria doesn't look like much, but the owner's nonna makes the ragu—go on weekdays, it's slammed on weekends"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
               />
             </div>
 
@@ -310,14 +310,14 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!selectedPlace || loading}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
               >
                 {loading ? 'Adding...' : 'Add Idea'}
               </button>
