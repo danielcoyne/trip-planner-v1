@@ -444,7 +444,7 @@ export default function TripDetailPage({
         )}
 
         {activeTab === 'feedback' && (
-          <ReactionsView tripId={id} ideas={ideas} placesCache={placesCache} />
+          <ReactionsView ideas={ideas} placesCache={placesCache} />
         )}
 
         {activeTab === 'map' && (
