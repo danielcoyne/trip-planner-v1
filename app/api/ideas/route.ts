@@ -65,6 +65,9 @@ export async function GET(request: NextRequest) {
   try {
     const ideas = await prisma.tripIdea.findMany({
       where: { tripId },
+      include: {
+        reactions: true
+      },
       orderBy: [
         { day: 'asc' },
         { createdAt: 'asc' }
