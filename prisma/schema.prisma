@@ -31,6 +31,7 @@ model TripIdea {
   category     String
   state        String
   day          Int?
+  endDay       Int?
   mealSlot     String?
   agentNotes   String?         @db.Text
   status       String          @default("SUGGESTED")

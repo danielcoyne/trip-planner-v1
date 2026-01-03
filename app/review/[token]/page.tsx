@@ -19,6 +19,7 @@ interface TripIdea {
   category: string;
   state: string;
   day: number | null;
+  endDay: number | null;
   mealSlot: string | null;
   agentNotes: string | null;
   reactions: IdeaReaction[];

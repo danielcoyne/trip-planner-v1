@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tripId, placeId, category, state, day, mealSlot, agentNotes } = body;
+    const { tripId, placeId, category, state, day, endDay, mealSlot, agentNotes } = body;
 
     if (!tripId || !placeId) {
       return NextResponse.json(
@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
         category: category || 'GENERAL',
         state: state || 'FLEXIBLE',
         day: day || null,
+        endDay: endDay || null,
         mealSlot: mealSlot || null,
         agentNotes: agentNotes || null,
         status: 'SUGGESTED',

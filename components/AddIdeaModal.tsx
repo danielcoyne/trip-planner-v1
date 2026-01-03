@@ -23,17 +23,54 @@ export default function AddIdeaModal({ tripId, isOpen, onClose, onIdeaAdded }: A
   const [category, setCategory] = useState('RESTAURANT');
   const [state, setState] = useState('FLEXIBLE');
   const [day, setDay] = useState<number | ''>('');
+  const [endDay, setEndDay] = useState<number | ''>('');
   const [mealSlot, setMealSlot] = useState('');
   const [agentNotes, setAgentNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [endDayError, setEndDayError] = useState<string>('');
 
   if (!isOpen) return null;
 
+  const handleEndDayChange = (value: string) => {
+    const newEndDay = value === '' ? '' : parseInt(value);
+    setEndDay(newEndDay);
+
+    // Validate endDay >= day
+    if (newEndDay !== '' && day !== '' && newEndDay < day) {
+      setEndDayError('End day must be after start day');
+    } else {
+      setEndDayError('');
+    }
+  };
+
+  const handleDayChange = (value: string) => {
+    const newDay = value === '' ? '' : parseInt(value);
+    setDay(newDay);
+
+    // Clear endDay if day is cleared
+    if (newDay === '') {
+      setEndDay('');
+      setEndDayError('');
+    }
+    // Revalidate endDay if it exists
+    else if (endDay !== '' && endDay < newDay) {
+      setEndDayError('End day must be after start day');
+    } else {
+      setEndDayError('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedPlace) {
       alert('Please select a place');
+      return;
+    }
+
+    // Validate endDay
+    if (endDay !== '' && day !== '' && endDay < day) {
+      alert('End day must be after start day');
       return;
     }
 
@@ -51,6 +88,7 @@ export default function AddIdeaModal({ tripId, isOpen, onClose, onIdeaAdded }: A
           category,
           state,
           day: day === '' ? null : day,
+          endDay: endDay === '' ? null : endDay,
           mealSlot: mealSlot || null,
           agentNotes: agentNotes || null,
         }),
@@ -62,9 +100,11 @@ export default function AddIdeaModal({ tripId, isOpen, onClose, onIdeaAdded }: A
         setCategory('RESTAURANT');
         setState('FLEXIBLE');
         setDay('');
+        setEndDay('');
         setMealSlot('');
         setAgentNotes('');
-        
+        setEndDayError('');
+
         onIdeaAdded();
         onClose();
       } else {
@@ -154,11 +194,34 @@ export default function AddIdeaModal({ tripId, isOpen, onClose, onIdeaAdded }: A
                 type="number"
                 min="1"
                 value={day}
-                onChange={(e) => setDay(e.target.value === '' ? '' : parseInt(e.target.value))}
+                onChange={(e) => handleDayChange(e.target.value)}
                 placeholder="e.g., 1, 2, 3..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+
+            {/* End Day (only show if day is selected) */}
+            {day !== '' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  End Day (optional)
+                </label>
+                <p className="text-xs text-gray-500 mb-2">For multi-day stays (e.g., hotels)</p>
+                <input
+                  type="number"
+                  min={day}
+                  value={endDay}
+                  onChange={(e) => handleEndDayChange(e.target.value)}
+                  placeholder={`${day} or later...`}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    endDayError ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {endDayError && (
+                  <p className="mt-1 text-sm text-red-600">{endDayError}</p>
+                )}
+              </div>
+            )}
 
             {/* Meal Slot (only show for restaurants) */}
             {category === 'RESTAURANT' && (

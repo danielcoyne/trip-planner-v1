@@ -24,8 +24,10 @@ interface TripIdea {
   state: string;
   status: string;
   day: number | null;
+  endDay: number | null;
   mealSlot: string | null;
   agentNotes: string | null;
+  createdAt?: string;
   reactions: Array<{
     id: string;
     reaction: string;
@@ -199,12 +201,73 @@ export default function TripDetailPage({
     ? `${window.location.origin}/review/${trip.reviewToken}`
     : null;
 
-  // Group ideas by state for display
-  const anchorIdeas = ideas.filter(i => i.state === 'ANCHOR');
-  const flexibleIdeas = ideas.filter(i => i.state === 'FLEXIBLE');
-  const spontaneousIdeas = ideas.filter(i => i.state === 'SPONTANEOUS');
+  // Calculate trip days
+  const getTripDays = () => {
+    const start = new Date(trip.startDate);
+    const end = new Date(trip.endDate);
+    const days = [];
+    let currentDate = new Date(start);
+    let dayNumber = 1;
 
-  const renderIdeaCard = (idea: TripIdea) => {
+    while (currentDate <= end) {
+      days.push({
+        number: dayNumber,
+        date: new Date(currentDate),
+        formatted: currentDate.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        })
+      });
+      currentDate.setDate(currentDate.getDate() + 1);
+      dayNumber++;
+    }
+    return days;
+  };
+
+  const tripDays = getTripDays();
+
+  // Group ideas by day
+  const getIdeasForDay = (dayNumber: number) => {
+    return ideas.filter(idea => {
+      if (!idea.day) return false;
+      // Single-day idea
+      if (!idea.endDay) return idea.day === dayNumber;
+      // Multi-day idea: show on all days in range
+      return idea.day <= dayNumber && dayNumber <= idea.endDay;
+    });
+  };
+
+  // Get unassigned ideas
+  const unassignedIdeas = ideas.filter(idea => !idea.day);
+
+  // Sort ideas within a day
+  const sortIdeasForDay = (dayIdeas: TripIdea[]) => {
+    const mealOrder = { BREAKFAST: 1, LUNCH: 2, DINNER: 3, SNACK: 4 };
+
+    return dayIdeas.sort((a, b) => {
+      // Hotels first
+      if (a.category === 'HOTEL' && b.category !== 'HOTEL') return -1;
+      if (a.category !== 'HOTEL' && b.category === 'HOTEL') return 1;
+
+      // Then by meal slot
+      const aMeal = a.mealSlot ? mealOrder[a.mealSlot as keyof typeof mealOrder] || 99 : 99;
+      const bMeal = b.mealSlot ? mealOrder[b.mealSlot as keyof typeof mealOrder] || 99 : 99;
+      if (aMeal !== bMeal) return aMeal - bMeal;
+
+      // Then by creation time
+      return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+    });
+  };
+
+  // State emoji mapping
+  const stateEmojis = {
+    ANCHOR: '🎯',
+    FLEXIBLE: '🔄',
+    SPONTANEOUS: '✨'
+  };
+
+  const renderIdeaCard = (idea: TripIdea, showDayRange = false) => {
     const place = placesCache[idea.placeId];
     if (!place) return null;
 
@@ -214,6 +277,11 @@ export default function TripDetailPage({
       SPONTANEOUS: 'bg-green-50 border-green-200',
     };
 
+    // Multi-day range text
+    const dayRangeText = showDayRange && idea.day && idea.endDay
+      ? `(Days ${idea.day}-${idea.endDay})`
+      : '';
+
     return (
       <div
         key={idea.id}
@@ -221,7 +289,12 @@ export default function TripDetailPage({
       >
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
-            <h3 className="font-semibold text-lg">{place.displayName}</h3>
+            <h3 className="font-semibold text-lg">
+              {stateEmojis[idea.state as keyof typeof stateEmojis]} {place.displayName}
+              {dayRangeText && (
+                <span className="text-sm font-normal text-gray-600 ml-2">{dayRangeText}</span>
+              )}
+            </h3>
             <p className="text-sm text-gray-600">{place.formattedAddress}</p>
           </div>
           <div className="flex gap-2 ml-4">
@@ -239,18 +312,12 @@ export default function TripDetailPage({
             </button>
           </div>
         </div>
-        
+
         <div className="space-y-2 text-sm">
           <div className="flex gap-4">
             <span className="font-medium">Category:</span>
             <span>{idea.category}</span>
           </div>
-          {idea.day && (
-            <div className="flex gap-4">
-              <span className="font-medium">Day:</span>
-              <span>{idea.day}</span>
-            </div>
-          )}
           {idea.mealSlot && (
             <div className="flex gap-4">
               <span className="font-medium">Meal:</span>
@@ -270,7 +337,7 @@ export default function TripDetailPage({
             </div>
           )}
         </div>
-        
+
         <a
           href={place.googleMapsUri}
           target="_blank"
@@ -402,38 +469,31 @@ export default function TripDetailPage({
               </div>
             ) : (
               <div className="space-y-8">
-                {/* Anchor Ideas */}
-                {anchorIdeas.length > 0 && (
-                  <div>
-                    <h3 className="text-xl font-semibold mb-4 text-red-700">
-                      🎯 Anchor (Must-Do) - {anchorIdeas.length}
-                    </h3>
-                    <div className="grid gap-4">
-                      {anchorIdeas.map(renderIdeaCard)}
-                    </div>
-                  </div>
-                )}
+                {/* Day-by-Day Sections */}
+                {tripDays.map(day => {
+                  const dayIdeas = sortIdeasForDay(getIdeasForDay(day.number));
+                  if (dayIdeas.length === 0) return null;
 
-                {/* Flexible Ideas */}
-                {flexibleIdeas.length > 0 && (
-                  <div>
-                    <h3 className="text-xl font-semibold mb-4 text-blue-700">
-                      🔄 Flexible (Do If Nearby) - {flexibleIdeas.length}
-                    </h3>
-                    <div className="grid gap-4">
-                      {flexibleIdeas.map(renderIdeaCard)}
+                  return (
+                    <div key={day.number}>
+                      <h3 className="text-xl font-bold mb-4 text-gray-900">
+                        Day {day.number} - {day.formatted}
+                      </h3>
+                      <div className="grid gap-4">
+                        {dayIdeas.map(idea => renderIdeaCard(idea, true))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })}
 
-                {/* Spontaneous Ideas */}
-                {spontaneousIdeas.length > 0 && (
+                {/* Unassigned Ideas */}
+                {unassignedIdeas.length > 0 && (
                   <div>
-                    <h3 className="text-xl font-semibold mb-4 text-green-700">
-                      ✨ Spontaneous (Nice-to-Have) - {spontaneousIdeas.length}
+                    <h3 className="text-xl font-bold mb-4 text-gray-700">
+                      Ideas Not Yet Assigned to Days
                     </h3>
                     <div className="grid gap-4">
-                      {spontaneousIdeas.map(renderIdeaCard)}
+                      {unassignedIdeas.map(idea => renderIdeaCard(idea, false))}
                     </div>
                   </div>
                 )}
