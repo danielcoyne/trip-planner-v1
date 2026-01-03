@@ -15,7 +15,6 @@ interface Trip {
   endDate: string;
   requirements: string;
   reviewToken: string | null;
-  reactions?: any[]; 
 }
 
 interface TripIdea {
@@ -26,6 +25,11 @@ interface TripIdea {
   day: number | null;
   mealSlot: string | null;
   agentNotes: string | null;
+  reactions: Array<{
+    id: string;
+    reaction: string;
+    clientNotes: string | null;
+  }>;
 }
 
 interface Place {
