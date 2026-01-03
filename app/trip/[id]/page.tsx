@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
+import { use, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import AddIdeaModal from '@/components/AddIdeaModal';
 import TripMap from '@/components/TripMap';
 import ReactionsView from '@/components/ReactionsView';
-import SuggestionsList from '@/components/SuggestionsList';
+import EditIdeaModal from '@/components/EditIdeaModal';
 
 interface Trip {
   id: string;
@@ -14,9 +13,7 @@ interface Trip {
   destination: string;
   startDate: string;
   endDate: string;
-  currentRound: number;
-  status: string;
-  requirements: string | null;
+  requirements: string;
   reviewToken: string | null;
 }
 
@@ -28,105 +25,68 @@ interface TripIdea {
   day: number | null;
   mealSlot: string | null;
   agentNotes: string | null;
-  status: string;
-  roundCreated: number;
-  reactions: IdeaReaction[];
 }
 
-interface IdeaReaction {
-  id: string;
-  reaction: string;
-  clientNotes: string | null;
-  createdAt: string;
-}
-
-interface ClientSuggestion {
-  id: string;
-  suggestionText: string;
-  round: number;
-  status: string;
-  resolvedPlaceId: string | null;
-  agentNotes: string | null;
-  createdAt: string;
-}
-
-interface PlaceCache {
-  placeId: string;
+interface Place {
   displayName: string;
   formattedAddress: string;
   rating: number | null;
   googleMapsUri: string;
-  lat: number;
-  lng: number;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
-export default function TripDetailPage() {
-  const params = useParams();
-  const tripId = params.id as string;
-
+export default function TripDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+  const router = useRouter();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [ideas, setIdeas] = useState<TripIdea[]>([]);
-  const [suggestions, setSuggestions] = useState<ClientSuggestion[]>([]);
-  const [placesCache, setPlacesCache] = useState<Record<string, PlaceCache>>({});
+  const [placesCache, setPlacesCache] = useState<Record<string, Place>>({});
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingIdea, setEditingIdea] = useState<TripIdea | null>(null);
   const [activeTab, setActiveTab] = useState<'ideas' | 'feedback' | 'map'>('ideas');
-  const [reviewUrl, setReviewUrl] = useState<string | null>(null);
-  const [showCopySuccess, setShowCopySuccess] = useState(false);
-  const [generatingLink, setGeneratingLink] = useState(false);
+  const [feedbackCount, setFeedbackCount] = useState(0);
+
+  useEffect(() => {
+    fetchTripData();
+  }, [id]);
 
   const fetchTripData = async () => {
-    setLoading(true);
     try {
-      // Fetch trip details
-      const tripResponse = await fetch(`/api/trips?id=${tripId}`);
-      const tripData = await tripResponse.json();
-      setTrip(tripData.trip);
+      const response = await fetch(`/api/trips?id=${id}`);
+      const data = await response.json();
+      setTrip(data.trip);
 
-      // Set review URL if token exists
-      if (tripData.trip.reviewToken) {
-        const baseUrl = window.location.origin;
-        setReviewUrl(`${baseUrl}/review/${tripData.trip.reviewToken}`);
-      }
-
-      // Fetch ideas with reactions
-      const ideasResponse = await fetch(`/api/ideas?tripId=${tripId}`);
+      const ideasResponse = await fetch(`/api/ideas?tripId=${id}`);
       const ideasData = await ideasResponse.json();
-      
-      // Fetch reactions for each idea
-      const ideasWithReactions = await Promise.all(
-        (ideasData.ideas || []).map(async (idea: TripIdea) => {
-          try {
-            const reactionsResponse = await fetch(`/api/reactions?ideaId=${idea.id}`);
-            const reactionsData = await reactionsResponse.json();
-            return {
-              ...idea,
-              reactions: reactionsData.reactions || []
-            };
-          } catch (error) {
-            console.error(`Error fetching reactions for idea ${idea.id}:`, error);
-            return { ...idea, reactions: [] };
-          }
-        })
+      setIdeas(ideasData.ideas);
+
+      // Count feedback (ideas with reactions)
+      const reactedIdeas = ideasData.ideas.filter((idea: any) => 
+        idea.reactions && idea.reactions.length > 0
       );
-      
-      setIdeas(ideasWithReactions);
+      setFeedbackCount(reactedIdeas.length);
 
-      // Fetch suggestions
-      const suggestionsResponse = await fetch(`/api/suggestions?tripId=${tripId}`);
-      const suggestionsData = await suggestionsResponse.json();
-      setSuggestions(suggestionsData.suggestions || []);
-
-      // Fetch place details for all ideas
-      const placeIds = [...new Set((ideasWithReactions || []).map((idea: TripIdea) => idea.placeId))];
-      const places: Record<string, PlaceCache> = {};
+      // Fetch place details for each unique placeId
+      const placeIds = [...new Set(ideasData.ideas.map((idea: TripIdea) => idea.placeId))];
+      const places: Record<string, Place> = {};
 
       for (const placeId of placeIds) {
+        if (typeof placeId !== 'string') continue;
+        
         try {
-          const response = await fetch(`/api/places/${placeId}`);
-          const data = await response.json();
-          if (data.place) {
-            places[placeId] = data.place;
+          const placeResponse = await fetch(`/api/places/${placeId}`);
+          const placeData = await placeResponse.json();
+          if (placeData.place) {
+            places[placeId] = placeData.place;
           }
         } catch (error) {
           console.error(`Error fetching place ${placeId}:`, error);
@@ -141,333 +101,367 @@ export default function TripDetailPage() {
     }
   };
 
-  useEffect(() => {
-    fetchTripData();
-  }, [tripId]);
-
-  const handleIdeaAdded = () => {
-    fetchTripData();
-  };
-
   const handleGenerateReviewLink = async () => {
-    setGeneratingLink(true);
     try {
       const response = await fetch('/api/review/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tripId })
+        body: JSON.stringify({ tripId: id }),
       });
-
       const data = await response.json();
-      setReviewUrl(data.reviewUrl);
       
-      if (trip) {
-        setTrip({ ...trip, reviewToken: data.reviewToken });
-      }
+      // Refresh trip data to get the new token
+      await fetchTripData();
+      
+      alert('Review link generated! Copy the URL from the box below.');
     } catch (error) {
       console.error('Error generating review link:', error);
       alert('Failed to generate review link');
-    } finally {
-      setGeneratingLink(false);
     }
   };
 
-  const handleCopyLink = () => {
-    if (reviewUrl) {
-      navigator.clipboard.writeText(reviewUrl);
-      setShowCopySuccess(true);
-      setTimeout(() => setShowCopySuccess(false), 2000);
+  const handleDeleteIdea = async (ideaId: string) => {
+    if (!confirm('Are you sure you want to delete this idea?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/ideas/${ideaId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Refresh the ideas list
+        await fetchTripData();
+      } else {
+        alert('Failed to delete idea');
+      }
+    } catch (error) {
+      console.error('Error deleting idea:', error);
+      alert('Failed to delete idea');
+    }
+  };
+
+  const handleEditIdea = (idea: TripIdea) => {
+    setEditingIdea(idea);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (ideaId: string, updates: any) => {
+    try {
+      const response = await fetch(`/api/ideas/${ideaId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+
+      if (response.ok) {
+        setShowEditModal(false);
+        setEditingIdea(null);
+        // Refresh the ideas list
+        await fetchTripData();
+      } else {
+        alert('Failed to update idea');
+      }
+    } catch (error) {
+      console.error('Error updating idea:', error);
+      alert('Failed to update idea');
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="text-center">Loading...</div>
       </div>
     );
   }
 
   if (!trip) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Trip not found</h1>
-          <Link href="/" className="text-blue-600 hover:underline">
-            ← Back to trips
-          </Link>
-        </div>
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="text-center">Trip not found</div>
       </div>
     );
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
+  const reviewUrl = trip.reviewToken
+    ? `${window.location.origin}/review/${trip.reviewToken}`
+    : null;
+
+  // Group ideas by state for display
+  const anchorIdeas = ideas.filter(i => i.state === 'ANCHOR');
+  const flexibleIdeas = ideas.filter(i => i.state === 'FLEXIBLE');
+  const spontaneousIdeas = ideas.filter(i => i.state === 'SPONTANEOUS');
+
+  const renderIdeaCard = (idea: TripIdea) => {
+    const place = placesCache[idea.placeId];
+    if (!place) return null;
+
+    const stateColors = {
+      ANCHOR: 'bg-red-50 border-red-200',
+      FLEXIBLE: 'bg-blue-50 border-blue-200',
+      SPONTANEOUS: 'bg-green-50 border-green-200',
+    };
+
+    return (
+      <div
+        key={idea.id}
+        className={`border-2 rounded-lg p-4 ${stateColors[idea.state as keyof typeof stateColors]}`}
+      >
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex-1">
+            <h3 className="font-semibold text-lg">{place.displayName}</h3>
+            <p className="text-sm text-gray-600">{place.formattedAddress}</p>
+          </div>
+          <div className="flex gap-2 ml-4">
+            <button
+              onClick={() => handleEditIdea(idea)}
+              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => handleDeleteIdea(idea.id)}
+              className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+        
+        <div className="space-y-2 text-sm">
+          <div className="flex gap-4">
+            <span className="font-medium">Category:</span>
+            <span>{idea.category}</span>
+          </div>
+          {idea.day && (
+            <div className="flex gap-4">
+              <span className="font-medium">Day:</span>
+              <span>{idea.day}</span>
+            </div>
+          )}
+          {idea.mealSlot && (
+            <div className="flex gap-4">
+              <span className="font-medium">Meal:</span>
+              <span>{idea.mealSlot}</span>
+            </div>
+          )}
+          {place.rating && (
+            <div className="flex gap-4">
+              <span className="font-medium">Rating:</span>
+              <span>⭐ {place.rating}</span>
+            </div>
+          )}
+          {idea.agentNotes && (
+            <div className="mt-3 p-3 bg-white rounded border border-gray-200">
+              <p className="font-medium text-sm mb-1">Agent Notes:</p>
+              <p className="text-gray-700">{idea.agentNotes}</p>
+            </div>
+          )}
+        </div>
+        
+        <a
+          href={place.googleMapsUri}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-block text-blue-600 hover:underline text-sm"
+        >
+          View on Google Maps →
+        </a>
+      </div>
+    );
   };
-
-  const tripDays = Math.ceil(
-    (new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)
-  );
-
-  const getStateColor = (state: string) => {
-    switch (state) {
-      case 'ANCHOR': return 'bg-red-100 text-red-800';
-      case 'FLEXIBLE': return 'bg-blue-100 text-blue-800';
-      case 'SPONTANEOUS': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStateIcon = (state: string) => {
-    switch (state) {
-      case 'ANCHOR': return '⚓';
-      case 'FLEXIBLE': return '↕️';
-      case 'SPONTANEOUS': return '⏱️';
-      default: return '📍';
-    }
-  };
-
-  // Count reactions for badge
-  const totalReactions = ideas.filter(idea => idea.reactions.length > 0).length;
-  const totalSuggestions = suggestions.length;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
-        <div className="mb-6">
-          <Link href="/" className="text-blue-600 hover:underline mb-4 inline-block">
-            ← Back to trips
-          </Link>
-          
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{trip.name}</h1>
-          <p className="text-gray-600">{trip.destination}</p>
-          <p className="text-gray-600">
-            {formatDate(trip.startDate)} - {formatDate(trip.endDate)} ({tripDays} days)
+        <div className="mb-8">
+          <button
+            onClick={() => router.push('/')}
+            className="mb-4 text-blue-600 hover:underline"
+          >
+            ← Back to Trips
+          </button>
+          <h1 className="text-4xl font-bold mb-2">{trip.name}</h1>
+          <p className="text-xl text-gray-600">
+            {trip.destination} • {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
           </p>
-          <div className="mt-2">
-            <span className="inline-block px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
-              Round {trip.currentRound} • {trip.status}
-            </span>
-          </div>
         </div>
 
-        {/* Requirements */}
-        {trip.requirements && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Client Requirements</h2>
-            <p className="text-gray-700">{trip.requirements}</p>
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="flex gap-8">
-            <button
-              onClick={() => setActiveTab('ideas')}
-              className={`pb-4 px-1 border-b-2 font-medium ${
-                activeTab === 'ideas'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Ideas ({ideas.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('feedback')}
-              className={`pb-4 px-1 border-b-2 font-medium relative ${
-                activeTab === 'feedback'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Client Feedback
-              {(totalReactions > 0 || totalSuggestions > 0) && (
-                <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
-                  {totalReactions + totalSuggestions}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('map')}
-              className={`pb-4 px-1 border-b-2 font-medium ${
-                activeTab === 'map'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Map
-            </button>
-          </nav>
+        {/* Client Requirements */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-2">Client Requirements</h2>
+          <p className="text-gray-700">{trip.requirements}</p>
         </div>
 
-        {/* Ideas Tab */}
-        {activeTab === 'ideas' && (
-          <div>
-            {ideas.length === 0 ? (
-              <div className="bg-white rounded-lg shadow p-12 text-center border-2 border-dashed border-gray-300">
-                <p className="text-gray-500 mb-4">No ideas added yet</p>
+        {/* Review Link Section */}
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-3">Share with Client</h2>
+          {reviewUrl ? (
+            <div>
+              <p className="text-sm text-gray-600 mb-2">Copy this link to share with your client:</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={reviewUrl}
+                  readOnly
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md bg-white"
+                />
                 <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  onClick={() => {
+                    navigator.clipboard.writeText(reviewUrl);
+                    alert('Link copied to clipboard!');
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
-                  + Add First Idea
+                  Copy Link
                 </button>
               </div>
-            ) : (
-              <>
-                <div className="mb-4 flex justify-between items-center">
-                  <p className="text-gray-600">{ideas.length} ideas</p>
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    + Add Idea
-                  </button>
-                </div>
+            </div>
+          ) : (
+            <button
+              onClick={handleGenerateReviewLink}
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Generate Review Link
+            </button>
+          )}
+        </div>
 
-                <div className="space-y-4">
-                  {ideas.map((idea) => {
-                    const place = placesCache[idea.placeId];
-                    
-                    return (
-                      <div key={idea.id} className="bg-white rounded-lg shadow p-6">
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <h3 className="text-xl font-semibold text-gray-900 mb-1">
-                              {place?.displayName || 'Loading...'}
-                            </h3>
-                            <p className="text-gray-600 text-sm mb-2">
-                              {place?.formattedAddress}
-                            </p>
-                            <div className="flex gap-2 flex-wrap">
-                              <span className={`inline-block px-3 py-1 rounded-full text-sm ${getStateColor(idea.state)}`}>
-                                {getStateIcon(idea.state)} {idea.state}
-                              </span>
-                              <span className="inline-block px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
-                                {idea.category}
-                              </span>
-                              {idea.day && (
-                                <span className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
-                                  Day {idea.day}
-                                </span>
-                              )}
-                              {idea.mealSlot && (
-                                <span className="inline-block px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm">
-                                  {idea.mealSlot}
-                                </span>
-                              )}
-                              {place?.rating && (
-                                <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
-                                  ⭐ {place.rating.toFixed(1)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          {place?.googleMapsUri && (
-                            <a
-                              href={place.googleMapsUri}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ml-4 text-blue-600 hover:text-blue-700"
-                            >
-                              View on Maps →
-                            </a>
-                          )}
-                        </div>
-
-                        {idea.agentNotes && (
-                          <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-600 rounded">
-                            <p className="text-sm font-medium text-blue-900 mb-1">Agent Notes:</p>
-                            <p className="text-gray-700">{idea.agentNotes}</p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {/* Share Section */}
-            <div className="mt-6 bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Share with Client</h3>
-              
-              {!reviewUrl ? (
-                <div>
-                  <p className="text-gray-600 mb-4">
-                    Generate a shareable review link to get client feedback on these ideas.
-                  </p>
-                  <button
-                    onClick={handleGenerateReviewLink}
-                    disabled={generatingLink || ideas.length === 0}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-                  >
-                    {generatingLink ? 'Generating...' : 'Generate Review Link'}
-                  </button>
-                  {ideas.length === 0 && (
-                    <p className="text-sm text-gray-500 mt-2">Add some ideas first</p>
-                  )}
-                </div>
-              ) : (
-                <div>
-                  <p className="text-gray-600 mb-3">Share this link with your client:</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={reviewUrl}
-                      readOnly
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
-                    />
-                    <button
-                      onClick={handleCopyLink}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                    >
-                      {showCopySuccess ? '✓ Copied!' : 'Copy'}
-                    </button>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-2">
-                    This link allows your client to review and provide feedback on all ideas.
-                  </p>
-                </div>
-              )}
+        {/* Tabs */}
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <div className="flex gap-8">
+              <button
+                onClick={() => setActiveTab('ideas')}
+                className={`pb-4 px-2 font-medium ${
+                  activeTab === 'ideas'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Ideas ({ideas.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('feedback')}
+                className={`pb-4 px-2 font-medium relative ${
+                  activeTab === 'feedback'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Client Feedback
+                {feedbackCount > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-600 rounded-full">
+                    {feedbackCount}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('map')}
+                className={`pb-4 px-2 font-medium ${
+                  activeTab === 'map'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Map
+              </button>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Client Feedback Tab */}
-        {activeTab === 'feedback' && (
-          <div className="space-y-6">
-            <ReactionsView ideas={ideas} placesCache={placesCache} />
-            
-            {suggestions.length > 0 && (
-              <div className="mt-8">
-                <SuggestionsList 
-                  suggestions={suggestions} 
-                  onRefresh={fetchTripData}
-                />
+        {/* Tab Content */}
+        {activeTab === 'ideas' && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Trip Ideas</h2>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                + Add Idea
+              </button>
+            </div>
+
+            {ideas.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-lg">
+                <p className="text-gray-500 mb-4">No ideas yet. Start adding some!</p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Anchor Ideas */}
+                {anchorIdeas.length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 text-red-700">
+                      🎯 Anchor (Must-Do) - {anchorIdeas.length}
+                    </h3>
+                    <div className="grid gap-4">
+                      {anchorIdeas.map(renderIdeaCard)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Flexible Ideas */}
+                {flexibleIdeas.length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 text-blue-700">
+                      🔄 Flexible (Do If Nearby) - {flexibleIdeas.length}
+                    </h3>
+                    <div className="grid gap-4">
+                      {flexibleIdeas.map(renderIdeaCard)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Spontaneous Ideas */}
+                {spontaneousIdeas.length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 text-green-700">
+                      ✨ Spontaneous (Nice-to-Have) - {spontaneousIdeas.length}
+                    </h3>
+                    <div className="grid gap-4">
+                      {spontaneousIdeas.map(renderIdeaCard)}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {/* Map Tab */}
+        {activeTab === 'feedback' && (
+          <ReactionsView tripId={id} ideas={ideas} placesCache={placesCache} />
+        )}
+
         {activeTab === 'map' && (
           <TripMap ideas={ideas} placesCache={placesCache} />
         )}
-      </div>
 
-      {/* Add Idea Modal */}
-      <AddIdeaModal
-        tripId={tripId}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onIdeaAdded={handleIdeaAdded}
-      />
+        {/* Add Idea Modal */}
+        {showAddModal && (
+          <AddIdeaModal
+            tripId={id}
+            onClose={() => setShowAddModal(false)}
+            onIdeaAdded={fetchTripData}
+          />
+        )}
+
+        {/* Edit Idea Modal */}
+        {showEditModal && editingIdea && (
+          <EditIdeaModal
+            idea={editingIdea}
+            placeName={placesCache[editingIdea.placeId]?.displayName || 'Unknown Place'}
+            onClose={() => {
+              setShowEditModal(false);
+              setEditingIdea(null);
+            }}
+            onSave={handleSaveEdit}
+          />
+        )}
+      </div>
     </div>
   );
 }
