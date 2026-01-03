@@ -29,6 +29,7 @@ interface TripIdea {
     id: string;
     reaction: string;
     clientNotes: string | null;
+    createdAt: string;
   }>;
 }
 
