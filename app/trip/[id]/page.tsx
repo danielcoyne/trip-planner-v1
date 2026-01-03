@@ -1,4 +1,4 @@
-'use client';
+\'use client';
 
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -34,6 +34,7 @@ interface TripIdea {
 }
 
 interface Place {
+  placeId: string;
   displayName: string;
   formattedAddress: string;
   rating: number | null;
@@ -92,7 +93,11 @@ export default function TripDetailPage({
           const placeResponse = await fetch(`/api/places/${placeId}`);
           const placeData = await placeResponse.json();
           if (placeData.place) {
-            places[placeId] = placeData.place;
+            // Add placeId to the place object
+            places[placeId] = {
+              ...placeData.place,
+              placeId: placeId
+            };
           }
         } catch (error) {
           console.error(`Error fetching place ${placeId}:`, error);
