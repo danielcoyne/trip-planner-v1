@@ -22,6 +22,7 @@ interface TripIdea {
   placeId: string;
   category: string;
   state: string;
+  status: string;
   day: number | null;
   mealSlot: string | null;
   agentNotes: string | null;
@@ -39,10 +40,8 @@ interface Place {
   formattedAddress: string;
   rating: number | null;
   googleMapsUri: string;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
+  lat: number;
+  lng: number;
 }
 
 export default function TripDetailPage({
@@ -452,13 +451,12 @@ export default function TripDetailPage({
         )}
 
         {/* Add Idea Modal */}
-        {showAddModal && (
-          <AddIdeaModal
-            tripId={id}
-            onClose={() => setShowAddModal(false)}
-            onIdeaAdded={fetchTripData}
-          />
-        )}
+        <AddIdeaModal
+          tripId={id}
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onIdeaAdded={fetchTripData}
+        />
 
         {/* Edit Idea Modal */}
         {showEditModal && editingIdea && (
