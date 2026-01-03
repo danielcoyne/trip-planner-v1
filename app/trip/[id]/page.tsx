@@ -15,6 +15,7 @@ interface Trip {
   endDate: string;
   requirements: string;
   reviewToken: string | null;
+  reactions?: any[]; 
 }
 
 interface TripIdea {
