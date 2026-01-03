@@ -8,6 +8,7 @@ interface EditIdeaModalProps {
     category: string;
     state: string;
     day: number | null;
+    endDay: number | null;
     mealSlot: string | null;
     agentNotes: string | null;
   };
@@ -21,17 +22,55 @@ export default function EditIdeaModal({ idea, placeName, onClose, onSave }: Edit
     category: idea.category,
     state: idea.state,
     day: idea.day || '',
+    endDay: idea.endDay || '',
     mealSlot: idea.mealSlot || '',
     agentNotes: idea.agentNotes || '',
   });
+  const [endDayError, setEndDayError] = useState<string>('');
+
+  const handleEndDayChange = (value: string) => {
+    setFormData({ ...formData, endDay: value });
+
+    // Validate endDay >= day
+    const newEndDay = value === '' ? '' : parseInt(value);
+    const currentDay = formData.day;
+    if (newEndDay !== '' && currentDay !== '' && newEndDay < Number(currentDay)) {
+      setEndDayError('End day must be after start day');
+    } else {
+      setEndDayError('');
+    }
+  };
+
+  const handleDayChange = (value: string) => {
+    setFormData({ ...formData, day: value });
+
+    // Clear endDay if day is cleared
+    if (value === '') {
+      setFormData({ ...formData, day: value, endDay: '' });
+      setEndDayError('');
+    }
+    // Revalidate endDay if it exists
+    else if (formData.endDay !== '' && Number(formData.endDay) < Number(value)) {
+      setEndDayError('End day must be after start day');
+    } else {
+      setEndDayError('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Validate endDay
+    if (formData.endDay !== '' && formData.day !== '' && Number(formData.endDay) < Number(formData.day)) {
+      alert('End day must be after start day');
+      return;
+    }
+
     const updates = {
       category: formData.category,
       state: formData.state,
       day: formData.day ? Number(formData.day) : null,
+      endDay: formData.endDay ? Number(formData.endDay) : null,
       mealSlot: formData.mealSlot || null,
       agentNotes: formData.agentNotes || null,
     };
@@ -100,11 +139,34 @@ export default function EditIdeaModal({ idea, placeName, onClose, onSave }: Edit
                 type="number"
                 min="1"
                 value={formData.day}
-                onChange={(e) => setFormData({ ...formData, day: e.target.value })}
+                onChange={(e) => handleDayChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 placeholder="Which day?"
               />
             </div>
+
+            {/* End Day (only show if day is selected) */}
+            {formData.day !== '' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  End Day (optional)
+                </label>
+                <p className="text-xs text-gray-500 mb-2">For multi-day stays (e.g., hotels)</p>
+                <input
+                  type="number"
+                  min={formData.day}
+                  value={formData.endDay}
+                  onChange={(e) => handleEndDayChange(e.target.value)}
+                  placeholder={`${formData.day} or later...`}
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    endDayError ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {endDayError && (
+                  <p className="mt-1 text-sm text-red-600">{endDayError}</p>
+                )}
+              </div>
+            )}
 
             {/* Meal Slot (only show for restaurants) */}
             {formData.category === 'RESTAURANT' && (
