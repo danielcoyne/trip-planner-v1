@@ -13,50 +13,84 @@ interface Place {
 
 interface AddIdeaModalProps {
   tripId: string;
+  tripStartDate: string;
+  tripEndDate: string;
   isOpen: boolean;
   onClose: () => void;
   onIdeaAdded: () => void;
 }
 
-export default function AddIdeaModal({ tripId, isOpen, onClose, onIdeaAdded }: AddIdeaModalProps) {
+export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpen, onClose, onIdeaAdded }: AddIdeaModalProps) {
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [category, setCategory] = useState('RESTAURANT');
   const [state, setState] = useState('FLEXIBLE');
-  const [day, setDay] = useState<number | ''>('');
-  const [endDay, setEndDay] = useState<number | ''>('');
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedEndDate, setSelectedEndDate] = useState<string>('');
   const [mealSlot, setMealSlot] = useState('');
   const [agentNotes, setAgentNotes] = useState('');
   const [loading, setLoading] = useState(false);
-  const [endDayError, setEndDayError] = useState<string>('');
+  const [endDateError, setEndDateError] = useState<string>('');
 
   if (!isOpen) return null;
 
-  const handleEndDayChange = (value: string) => {
-    const newEndDay = value === '' ? '' : parseInt(value);
-    setEndDay(newEndDay);
+  // Helper: Convert date string (YYYY-MM-DD) to day number
+  const dateToDayNumber = (dateStr: string): number => {
+    const tripStart = new Date(tripStartDate);
+    const selected = new Date(dateStr);
+    const diffTime = selected.getTime() - tripStart.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays + 1;
+  };
 
-    // Validate endDay >= day
-    if (newEndDay !== '' && day !== '' && newEndDay < day) {
-      setEndDayError('End day must be after start day');
+  // Helper: Format date for display
+  const formatDateDisplay = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  // Helper: Format date range for display
+  const formatDateRangeDisplay = (startStr: string, endStr: string): string => {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    const startDay = dateToDayNumber(startStr);
+    const endDay = dateToDayNumber(endStr);
+
+    return `${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} (Days ${startDay}-${endDay})`;
+  };
+
+  // Helper: Format YYYY-MM-DD for date input min/max
+  const formatDateForInput = (dateStr: string): string => {
+    return dateStr.split('T')[0];
+  };
+
+  const handleDateChange = (value: string) => {
+    setSelectedDate(value);
+
+    // Clear end date if start date is cleared
+    if (value === '') {
+      setSelectedEndDate('');
+      setEndDateError('');
+    }
+    // Revalidate end date if it exists
+    else if (selectedEndDate !== '' && new Date(selectedEndDate) < new Date(value)) {
+      setEndDateError('End date must be after start date');
     } else {
-      setEndDayError('');
+      setEndDateError('');
     }
   };
 
-  const handleDayChange = (value: string) => {
-    const newDay = value === '' ? '' : parseInt(value);
-    setDay(newDay);
+  const handleEndDateChange = (value: string) => {
+    setSelectedEndDate(value);
 
-    // Clear endDay if day is cleared
-    if (newDay === '') {
-      setEndDay('');
-      setEndDayError('');
-    }
-    // Revalidate endDay if it exists
-    else if (endDay !== '' && endDay < newDay) {
-      setEndDayError('End day must be after start day');
+    // Validate end date >= start date
+    if (value !== '' && selectedDate !== '' && new Date(value) < new Date(selectedDate)) {
+      setEndDateError('End date must be after start date');
     } else {
-      setEndDayError('');
+      setEndDateError('');
     }
   };
 
@@ -68,15 +102,19 @@ export default function AddIdeaModal({ tripId, isOpen, onClose, onIdeaAdded }: A
       return;
     }
 
-    // Validate endDay
-    if (endDay !== '' && day !== '' && endDay < day) {
-      alert('End day must be after start day');
+    // Validate end date
+    if (selectedEndDate !== '' && selectedDate !== '' && new Date(selectedEndDate) < new Date(selectedDate)) {
+      alert('End date must be after start date');
       return;
     }
 
     setLoading(true);
 
     try {
+      // Convert dates to day numbers
+      const day = selectedDate ? dateToDayNumber(selectedDate) : null;
+      const endDay = selectedEndDate ? dateToDayNumber(selectedEndDate) : null;
+
       const response = await fetch('/api/ideas', {
         method: 'POST',
         headers: {
@@ -87,8 +125,8 @@ export default function AddIdeaModal({ tripId, isOpen, onClose, onIdeaAdded }: A
           placeId: selectedPlace.placeId,
           category,
           state,
-          day: day === '' ? null : day,
-          endDay: endDay === '' ? null : endDay,
+          day,
+          endDay,
           mealSlot: mealSlot || null,
           agentNotes: agentNotes || null,
         }),
@@ -99,11 +137,11 @@ export default function AddIdeaModal({ tripId, isOpen, onClose, onIdeaAdded }: A
         setSelectedPlace(null);
         setCategory('RESTAURANT');
         setState('FLEXIBLE');
-        setDay('');
-        setEndDay('');
+        setSelectedDate('');
+        setSelectedEndDate('');
         setMealSlot('');
         setAgentNotes('');
-        setEndDayError('');
+        setEndDateError('');
 
         onIdeaAdded();
         onClose();
@@ -185,40 +223,50 @@ export default function AddIdeaModal({ tripId, isOpen, onClose, onIdeaAdded }: A
               </select>
             </div>
 
-            {/* Day */}
+            {/* Date */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Day (optional)
+                Date (optional)
               </label>
               <input
-                type="number"
-                min="1"
-                value={day}
-                onChange={(e) => handleDayChange(e.target.value)}
-                placeholder="e.g., 1, 2, 3..."
+                type="date"
+                min={formatDateForInput(tripStartDate)}
+                max={formatDateForInput(tripEndDate)}
+                value={selectedDate}
+                onChange={(e) => handleDateChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+              {selectedDate && (
+                <p className="mt-1 text-sm text-gray-600">
+                  {formatDateDisplay(selectedDate)} (Day {dateToDayNumber(selectedDate)})
+                </p>
+              )}
             </div>
 
-            {/* End Day (only show if day is selected) */}
-            {day !== '' && (
+            {/* End Date (only show if date is selected) */}
+            {selectedDate !== '' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  End Day (optional)
+                  End Date (optional)
                 </label>
                 <p className="text-xs text-gray-500 mb-2">For multi-day stays (e.g., hotels)</p>
                 <input
-                  type="number"
-                  min={day}
-                  value={endDay}
-                  onChange={(e) => handleEndDayChange(e.target.value)}
-                  placeholder={`${day} or later...`}
+                  type="date"
+                  min={selectedDate}
+                  max={formatDateForInput(tripEndDate)}
+                  value={selectedEndDate}
+                  onChange={(e) => handleEndDateChange(e.target.value)}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    endDayError ? 'border-red-500' : 'border-gray-300'
+                    endDateError ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
-                {endDayError && (
-                  <p className="mt-1 text-sm text-red-600">{endDayError}</p>
+                {selectedEndDate && (
+                  <p className="mt-1 text-sm text-gray-600">
+                    {formatDateRangeDisplay(selectedDate, selectedEndDate)}
+                  </p>
+                )}
+                {endDateError && (
+                  <p className="mt-1 text-sm text-red-600">{endDateError}</p>
                 )}
               </div>
             )}

@@ -513,6 +513,8 @@ export default function TripDetailPage({
         {/* Add Idea Modal */}
         <AddIdeaModal
           tripId={id}
+          tripStartDate={trip.startDate}
+          tripEndDate={trip.endDate}
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onIdeaAdded={fetchTripData}
@@ -522,6 +524,8 @@ export default function TripDetailPage({
         {showEditModal && editingIdea && (
           <EditIdeaModal
             idea={editingIdea}
+            tripStartDate={trip.startDate}
+            tripEndDate={trip.endDate}
             placeName={placesCache[editingIdea.placeId]?.displayName || 'Unknown Place'}
             onClose={() => {
               setShowEditModal(false);
