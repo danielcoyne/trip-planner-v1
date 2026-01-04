@@ -7,6 +7,8 @@ import TripMap from '@/components/TripMap';
 import ReactionsView from '@/components/ReactionsView';
 import EditIdeaModal from '@/components/EditIdeaModal';
 import SegmentsEditor from '@/components/SegmentsEditor';
+import DateRangePicker from '@/components/DateRangePicker';
+import { updateTripDates } from './tripDates.actions';
 
 interface TripSegment {
   id: string;
@@ -72,6 +74,11 @@ export default function TripDetailPage({
   const [editingIdea, setEditingIdea] = useState<TripIdea | null>(null);
   const [activeTab, setActiveTab] = useState<'ideas' | 'feedback' | 'map'>('ideas');
   const [feedbackCount, setFeedbackCount] = useState(0);
+  const [showEditDatesModal, setShowEditDatesModal] = useState(false);
+  const [editStartDate, setEditStartDate] = useState<Date | undefined>();
+  const [editEndDate, setEditEndDate] = useState<Date | undefined>();
+  const [datesError, setDatesError] = useState<string>('');
+  const [savingDates, setSavingDates] = useState(false);
 
   useEffect(() => {
     fetchTripData();
@@ -188,6 +195,49 @@ export default function TripDetailPage({
     } catch (error) {
       console.error('Error updating idea:', error);
       alert('Failed to update idea');
+    }
+  };
+
+  const openEditDatesModal = () => {
+    setEditStartDate(new Date(trip!.startDate));
+    setEditEndDate(new Date(trip!.endDate));
+    setDatesError('');
+    setShowEditDatesModal(true);
+  };
+
+  const handleSaveDates = async () => {
+    if (!editStartDate || !editEndDate) {
+      setDatesError('Please select both start and end dates');
+      return;
+    }
+
+    setSavingDates(true);
+    setDatesError('');
+
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    try {
+      const result = await updateTripDates(
+        id,
+        formatDate(editStartDate),
+        formatDate(editEndDate)
+      );
+
+      if (result.success) {
+        setShowEditDatesModal(false);
+        await fetchTripData();
+      } else {
+        setDatesError(result.error);
+      }
+    } catch (error) {
+      setDatesError('An unexpected error occurred');
+    } finally {
+      setSavingDates(false);
     }
   };
 
@@ -378,10 +428,22 @@ export default function TripDetailPage({
           >
             ← Back to Trips
           </button>
-          <h1 className="text-4xl font-bold mb-2 text-gray-900 dark:text-white">{trip.name}</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300">
-            {derivedLocation ? `${derivedLocation} • ` : ''}{new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2 text-gray-900 dark:text-white">{trip.name}</h1>
+              <div className="flex items-center gap-3">
+                <p className="text-xl text-gray-600 dark:text-gray-300">
+                  {derivedLocation ? `${derivedLocation} • ` : ''}{new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+                </p>
+                <button
+                  onClick={openEditDatesModal}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Edit dates
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Client Requirements */}
@@ -581,6 +643,49 @@ export default function TripDetailPage({
             }}
             onSave={handleSaveEdit}
           />
+        )}
+
+        {/* Edit Dates Modal */}
+        {showEditDatesModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+              <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+                Edit Trip Dates
+              </h3>
+
+              <DateRangePicker
+                startDate={editStartDate}
+                endDate={editEndDate}
+                onStartDateChange={setEditStartDate}
+                onEndDateChange={setEditEndDate}
+              />
+
+              {datesError && (
+                <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                  <p className="text-sm text-red-800 dark:text-red-200">{datesError}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowEditDatesModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+                  disabled={savingDates}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveDates}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                  disabled={savingDates}
+                >
+                  {savingDates ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

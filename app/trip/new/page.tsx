@@ -2,24 +2,41 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import DateRangePicker from "@/components/DateRangePicker"
 
 export default function NewTripPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [startDate, setStartDate] = useState<Date | undefined>()
+  const [endDate, setEndDate] = useState<Date | undefined>()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
-    
+
+    if (!startDate || !endDate) {
+      alert("Please select both start and end dates")
+      setLoading(false)
+      return
+    }
+
     const formData = new FormData(e.currentTarget)
-    
+
+    // Convert dates to YYYY-MM-DD format
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
     const response = await fetch("/api/trips", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: formData.get("name"),
-        startDate: formData.get("startDate"),
-        endDate: formData.get("endDate"),
+        startDate: formatDate(startDate),
+        endDate: formatDate(endDate),
         requirements: formData.get("requirements"),
       }),
     })
@@ -50,30 +67,12 @@ export default function NewTripPage() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Start Date
-            </label>
-            <input
-              name="startDate"
-              type="date"
-              required
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              End Date
-            </label>
-            <input
-              name="endDate"
-              type="date"
-              required
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-        </div>
+        <DateRangePicker
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+        />
 
         <div>
           <label className="block text-sm font-medium mb-1">
