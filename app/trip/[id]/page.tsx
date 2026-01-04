@@ -373,6 +373,26 @@ export default function TripDetailPage({
           <p className="text-gray-700 dark:text-gray-300">{trip.requirements}</p>
         </div>
 
+        {/* Itinerary Link */}
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-2 border-purple-200 dark:border-purple-800 rounded-lg p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
+                View Itinerary
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                See your trip as a polished, day-by-day itinerary
+              </p>
+            </div>
+            <button
+              onClick={() => router.push(`/trip/${id}/itinerary`)}
+              className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 font-medium"
+            >
+              Open Itinerary →
+            </button>
+          </div>
+        </div>
+
         {/* Review Link Section */}
         <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Share with Client</h2>
