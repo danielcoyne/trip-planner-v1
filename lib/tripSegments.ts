@@ -1,4 +1,4 @@
-import { addDays, differenceInCalendarDays, isAfter, isBefore, isEqual, startOfDay } from "date-fns";
+import { addDays, differenceInCalendarDays, isAfter, isBefore, isEqual, startOfDay, subDays } from "date-fns";
 
 export type TripSegment = {
   id: string;
@@ -8,6 +8,15 @@ export type TripSegment = {
   lat?: number | null;
   lng?: number | null;
   timezone?: string | null;
+  notes?: string | null;
+};
+
+export type DisplaySegment = {
+  kind: 'real' | 'tbd';
+  id: string;
+  startDate: Date;
+  endDate: Date;
+  placeName: string;
   notes?: string | null;
 };
 
@@ -94,4 +103,84 @@ export function generateTripDays(tripStart: Date, tripEnd: Date) {
 
   const total = differenceInCalendarDays(end, start) + 1;
   return Array.from({ length: total }, (_, i) => addDays(start, i));
+}
+
+export function buildDisplaySegments(
+  tripStart: Date,
+  tripEnd: Date,
+  realSegments: TripSegment[]
+): DisplaySegment[] {
+  const tripS = normalizeDay(tripStart);
+  const tripE = normalizeDay(tripEnd);
+
+  // If no real segments, return single TBD covering whole trip
+  if (realSegments.length === 0) {
+    return [{
+      kind: 'tbd',
+      id: 'tbd-full',
+      startDate: tripS,
+      endDate: tripE,
+      placeName: 'TBD',
+      notes: null,
+    }];
+  }
+
+  // Sort real segments by startDate
+  const sorted = realSegments
+    .slice()
+    .sort((a, b) => +normalizeDay(a.startDate) - +normalizeDay(b.startDate));
+
+  const displaySegments: DisplaySegment[] = [];
+  let cursor = tripS;
+
+  for (const realSeg of sorted) {
+    const segStart = normalizeDay(realSeg.startDate);
+    const segEnd = normalizeDay(realSeg.endDate);
+
+    // If there's a gap before this segment, create TBD
+    if (isBefore(cursor, segStart)) {
+      const gapEnd = subDays(segStart, 1);
+      displaySegments.push({
+        kind: 'tbd',
+        id: `tbd-${cursor.getTime()}`,
+        startDate: cursor,
+        endDate: gapEnd,
+        placeName: 'TBD',
+        notes: null,
+      });
+    }
+
+    // Add real segment
+    displaySegments.push({
+      kind: 'real',
+      id: realSeg.id,
+      startDate: segStart,
+      endDate: segEnd,
+      placeName: realSeg.placeName,
+      notes: realSeg.notes,
+    });
+
+    // Move cursor past this segment
+    cursor = addDays(segEnd, 1);
+  }
+
+  // If there's a gap after the last segment, create TBD
+  if (isBefore(cursor, tripE) || isEqual(cursor, tripE)) {
+    displaySegments.push({
+      kind: 'tbd',
+      id: `tbd-${cursor.getTime()}`,
+      startDate: cursor,
+      endDate: tripE,
+      placeName: 'TBD',
+      notes: null,
+    });
+  }
+
+  return displaySegments;
+}
+
+// Helper to find display segment for a day (including TBD gaps)
+export function findDisplaySegmentForDay(displaySegments: DisplaySegment[], day: Date) {
+  const d = normalizeDay(day);
+  return displaySegments.find(seg => isDayInRange(d, seg.startDate, seg.endDate)) ?? null;
 }

@@ -18,7 +18,6 @@ export default function NewTripPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: formData.get("name"),
-        destination: formData.get("destination"),
         startDate: formData.get("startDate"),
         endDate: formData.get("endDate"),
         requirements: formData.get("requirements"),
@@ -26,8 +25,8 @@ export default function NewTripPage() {
     })
 
     if (response.ok) {
-      const trip = await response.json()
-      router.push(`/trip/${trip.id}`)
+      const data = await response.json()
+      router.push(`/trip/${data.trip.id}`)
     } else {
       alert("Error creating trip")
       setLoading(false)
@@ -41,25 +40,13 @@ export default function NewTripPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">
-            Client & Trip Name
+            Trip Name
           </label>
           <input
             name="name"
             required
             className="w-full border rounded px-3 py-2"
-            placeholder="Sarah's Rome Adventure"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Destination
-          </label>
-          <input
-            name="destination"
-            required
-            className="w-full border rounded px-3 py-2"
-            placeholder="Rome, Italy"
+            placeholder="Sarah's European Adventure"
           />
         </div>
 

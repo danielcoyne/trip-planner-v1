@@ -2,7 +2,12 @@
 
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { findSegmentForDay, buildSegmentSummary, type TripSegment as TripSegmentType } from '@/lib/tripSegments';
+import {
+  buildDisplaySegments,
+  findDisplaySegmentForDay,
+  type TripSegment as TripSegmentType,
+  type DisplaySegment
+} from '@/lib/tripSegments';
 
 interface TripSegment {
   id: string;
@@ -18,7 +23,7 @@ interface TripSegment {
 interface Trip {
   id: string;
   name: string;
-  destination: string;
+  destination: string | null;
   startDate: string;
   endDate: string;
   requirements: string;
@@ -158,22 +163,36 @@ export default function ItineraryPage({
 
   const tripDays = getTripDays();
 
-  // Segment logic
-  const segments: TripSegmentType[] = (trip.segments || []).map(seg => ({
+  // Segment logic - use REAL segments for conversion
+  const realSegments: TripSegmentType[] = (trip.segments || []).map(seg => ({
     ...seg,
     startDate: new Date(seg.startDate),
     endDate: new Date(seg.endDate),
   }));
-  const hasSegments = segments.length > 0;
-  const hasMultipleSegments = segments.length > 1;
 
-  const segmentSummary = hasMultipleSegments
-    ? buildSegmentSummary(segments, new Date(trip.startDate), new Date(trip.endDate))
+  // Build display segments (includes TBD gaps)
+  const displaySegments: DisplaySegment[] = buildDisplaySegments(
+    new Date(trip.startDate),
+    new Date(trip.endDate),
+    realSegments
+  );
+
+  const hasMultipleDisplaySegments = displaySegments.length > 1;
+
+  // Build segment summary from display segments
+  const segmentSummary = hasMultipleDisplaySegments
+    ? displaySegments.map(seg => ({
+        id: seg.id,
+        placeName: seg.placeName,
+        dayStart: Math.floor((seg.startDate.getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1,
+        dayEnd: Math.floor((seg.endDate.getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1,
+      }))
     : [];
 
-  const headerLocationLine = hasSegments && segments.length === 1
-    ? segments[0].placeName
-    : trip.destination;
+  // Header location line uses only REAL segments
+  const headerLocationLine = realSegments.length === 1
+    ? realSegments[0].placeName
+    : trip.destination || '';
 
   // Get lodging summary (hotels grouped by day ranges)
   const getLodgingSummary = (): HotelSummary[] => {
@@ -402,8 +421,8 @@ export default function ItineraryPage({
               {formatDateRange()}
             </p>
 
-            {/* Segment summary line - only for multiple segments */}
-            {hasMultipleSegments && segmentSummary.length > 0 && (
+            {/* Segment summary line - only for multiple display segments */}
+            {hasMultipleDisplaySegments && segmentSummary.length > 0 && (
               <div className="mt-4 flex flex-wrap justify-center gap-2 text-base md:text-lg">
                 {segmentSummary.map((s, idx) => (
                   <span key={s.id} className="inline-flex items-center">
@@ -461,7 +480,9 @@ export default function ItineraryPage({
         <div className="space-y-12">
           {tripDays.map(day => {
             const dayIdeas = sortIdeasForDay(getIdeasForDay(day.number));
-            const daySegment = hasMultipleSegments ? findSegmentForDay(segments, day.date) : null;
+            const daySegment = hasMultipleDisplaySegments
+              ? findDisplaySegmentForDay(displaySegments, day.date)
+              : null;
 
             return (
               <div key={day.number} className="scroll-mt-8">
@@ -478,7 +499,7 @@ export default function ItineraryPage({
                     </div>
 
                     {/* Base badge - only for multi-segment trips */}
-                    {hasMultipleSegments && (
+                    {hasMultipleDisplaySegments && (
                       <span className="rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-300">
                         Base: {daySegment?.placeName ?? 'TBD'}
                       </span>

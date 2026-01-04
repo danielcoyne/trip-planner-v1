@@ -10,7 +10,7 @@ generator client {
 model Trip {
   id           String              @id @default(cuid())
   name         String
-  destination  String
+  destination  String?
   startDate    DateTime
   endDate      DateTime
   currentRound Int                 @default(1)

@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     const trip = await prisma.trip.create({
       data: {
         name,
-        destination,
+        destination: destination || null,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         requirements: requirements || null,

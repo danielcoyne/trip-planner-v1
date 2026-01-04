@@ -19,7 +19,7 @@ interface TripSegment {
 interface Trip {
   id: string;
   name: string;
-  destination: string;
+  destination: string | null;
   startDate: string;
   endDate: string;
   requirements: string;
@@ -211,12 +211,12 @@ export default function TripDetailPage({
     ? `${window.location.origin}/review/${trip.reviewToken}`
     : null;
 
-  // Derive location line from segments
-  const segments = trip.segments || [];
+  // Derive location line from REAL segments only
+  const realSegments = trip.segments || [];
   const derivedLocation =
-    segments.length === 0 ? trip.destination :
-    segments.length === 1 ? segments[0].placeName :
-    segments.map(s => s.placeName).join(' → ');
+    realSegments.length === 0 ? '' :
+    realSegments.length === 1 ? realSegments[0].placeName :
+    realSegments.map(s => s.placeName).join(' → ');
 
   // Calculate trip days
   const getTripDays = () => {
@@ -380,7 +380,7 @@ export default function TripDetailPage({
           </button>
           <h1 className="text-4xl font-bold mb-2 text-gray-900 dark:text-white">{trip.name}</h1>
           <p className="text-xl text-gray-600 dark:text-gray-300">
-            {derivedLocation} • {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+            {derivedLocation ? `${derivedLocation} • ` : ''}{new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
           </p>
         </div>
 
@@ -394,7 +394,9 @@ export default function TripDetailPage({
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 border border-gray-200 dark:border-gray-700">
           <SegmentsEditor
             tripId={id}
-            segments={segments}
+            tripStartDate={trip.startDate}
+            tripEndDate={trip.endDate}
+            realSegments={realSegments}
             onRefresh={fetchTripData}
           />
         </div>
