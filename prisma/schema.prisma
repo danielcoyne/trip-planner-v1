@@ -19,6 +19,7 @@ model Trip {
   reviewToken  String?             @unique
   ideas        TripIdea[]
   suggestions  ClientSuggestion[]
+  segments     TripSegment[]
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 }
@@ -81,6 +82,27 @@ model ClientSuggestion {
   resolvedPlaceId String?
   agentNotes      String?  @db.Text
   createdAt       DateTime @default(now())
-  
+
   @@index([tripId])
+}
+
+model TripSegment {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  startDate DateTime
+  endDate   DateTime
+
+  placeName String
+  lat       Float?
+  lng       Float?
+  timezone  String?
+  notes     String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tripId])
+  @@index([tripId, startDate, endDate])
 }

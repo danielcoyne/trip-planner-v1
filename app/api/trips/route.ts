@@ -37,6 +37,11 @@ export async function GET(request: NextRequest) {
     if (id) {
       const trip = await prisma.trip.findUnique({
         where: { id },
+        include: {
+          segments: {
+            orderBy: { startDate: 'asc' },
+          },
+        },
       });
 
       if (!trip) {

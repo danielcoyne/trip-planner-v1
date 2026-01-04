@@ -6,6 +6,15 @@ import AddIdeaModal from '@/components/AddIdeaModal';
 import TripMap from '@/components/TripMap';
 import ReactionsView from '@/components/ReactionsView';
 import EditIdeaModal from '@/components/EditIdeaModal';
+import SegmentsEditor from '@/components/SegmentsEditor';
+
+interface TripSegment {
+  id: string;
+  startDate: string;
+  endDate: string;
+  placeName: string;
+  notes: string | null;
+}
 
 interface Trip {
   id: string;
@@ -15,6 +24,7 @@ interface Trip {
   endDate: string;
   requirements: string;
   reviewToken: string | null;
+  segments?: TripSegment[];
 }
 
 interface TripIdea {
@@ -201,6 +211,13 @@ export default function TripDetailPage({
     ? `${window.location.origin}/review/${trip.reviewToken}`
     : null;
 
+  // Derive location line from segments
+  const segments = trip.segments || [];
+  const derivedLocation =
+    segments.length === 0 ? trip.destination :
+    segments.length === 1 ? segments[0].placeName :
+    segments.map(s => s.placeName).join(' → ');
+
   // Calculate trip days
   const getTripDays = () => {
     const start = new Date(trip.startDate);
@@ -363,7 +380,7 @@ export default function TripDetailPage({
           </button>
           <h1 className="text-4xl font-bold mb-2 text-gray-900 dark:text-white">{trip.name}</h1>
           <p className="text-xl text-gray-600 dark:text-gray-300">
-            {trip.destination} • {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+            {derivedLocation} • {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
           </p>
         </div>
 
@@ -371,6 +388,15 @@ export default function TripDetailPage({
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 border border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Client Requirements</h2>
           <p className="text-gray-700 dark:text-gray-300">{trip.requirements}</p>
+        </div>
+
+        {/* Segments Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 border border-gray-200 dark:border-gray-700">
+          <SegmentsEditor
+            tripId={id}
+            segments={segments}
+            onRefresh={fetchTripData}
+          />
         </div>
 
         {/* Itinerary Link */}

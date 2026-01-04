@@ -2,6 +2,18 @@
 
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { findSegmentForDay, buildSegmentSummary, type TripSegment as TripSegmentType } from '@/lib/tripSegments';
+
+interface TripSegment {
+  id: string;
+  startDate: string;
+  endDate: string;
+  placeName: string;
+  lat: number | null;
+  lng: number | null;
+  timezone: string | null;
+  notes: string | null;
+}
 
 interface Trip {
   id: string;
@@ -10,6 +22,7 @@ interface Trip {
   startDate: string;
   endDate: string;
   requirements: string;
+  segments?: TripSegment[];
 }
 
 interface TripIdea {
@@ -144,6 +157,23 @@ export default function ItineraryPage({
   };
 
   const tripDays = getTripDays();
+
+  // Segment logic
+  const segments: TripSegmentType[] = (trip.segments || []).map(seg => ({
+    ...seg,
+    startDate: new Date(seg.startDate),
+    endDate: new Date(seg.endDate),
+  }));
+  const hasSegments = segments.length > 0;
+  const hasMultipleSegments = segments.length > 1;
+
+  const segmentSummary = hasMultipleSegments
+    ? buildSegmentSummary(segments, new Date(trip.startDate), new Date(trip.endDate))
+    : [];
+
+  const headerLocationLine = hasSegments && segments.length === 1
+    ? segments[0].placeName
+    : trip.destination;
 
   // Get lodging summary (hotels grouped by day ranges)
   const getLodgingSummary = (): HotelSummary[] => {
@@ -366,11 +396,28 @@ export default function ItineraryPage({
               {trip.name}
             </h1>
             <p className="text-2xl md:text-3xl font-light mb-2">
-              {trip.destination}
+              {headerLocationLine}
             </p>
             <p className="text-lg md:text-xl text-white/90">
               {formatDateRange()}
             </p>
+
+            {/* Segment summary line - only for multiple segments */}
+            {hasMultipleSegments && segmentSummary.length > 0 && (
+              <div className="mt-4 flex flex-wrap justify-center gap-2 text-base md:text-lg">
+                {segmentSummary.map((s, idx) => (
+                  <span key={s.id} className="inline-flex items-center">
+                    <span className="font-medium">{s.placeName}</span>
+                    <span className="opacity-90 ml-1">
+                      (Days {s.dayStart}–{s.dayEnd})
+                    </span>
+                    {idx < segmentSummary.length - 1 && (
+                      <span className="mx-3 opacity-70">·</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Overview */}
@@ -414,18 +461,28 @@ export default function ItineraryPage({
         <div className="space-y-12">
           {tripDays.map(day => {
             const dayIdeas = sortIdeasForDay(getIdeasForDay(day.number));
+            const daySegment = hasMultipleSegments ? findSegmentForDay(segments, day.date) : null;
 
             return (
               <div key={day.number} className="scroll-mt-8">
                 {/* Day Header */}
                 <div className="mb-6">
-                  <div className="flex items-baseline gap-4 mb-2">
-                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-                      Day {day.number}
-                    </h2>
-                    <p className="text-lg text-gray-600 dark:text-gray-400">
-                      {day.formatted}
-                    </p>
+                  <div className="flex items-baseline justify-between mb-2">
+                    <div className="flex items-baseline gap-4">
+                      <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                        Day {day.number}
+                      </h2>
+                      <p className="text-lg text-gray-600 dark:text-gray-400">
+                        {day.formatted}
+                      </p>
+                    </div>
+
+                    {/* Base badge - only for multi-segment trips */}
+                    {hasMultipleSegments && (
+                      <span className="rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Base: {daySegment?.placeName ?? 'TBD'}
+                      </span>
+                    )}
                   </div>
                   <div className="h-1 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 rounded-full w-24"></div>
                 </div>
