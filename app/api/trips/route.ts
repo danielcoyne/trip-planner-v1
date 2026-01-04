@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { fromYMD } from '@/lib/dateOnly';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,8 +11,8 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         destination: destination || null,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: fromYMD(startDate),
+        endDate: fromYMD(endDate),
         requirements: requirements || null,
         currentRound: 1,
         status: 'DRAFT',

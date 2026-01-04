@@ -2,7 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { startOfDay } from 'date-fns';
+import { fromYMD, startOfLocalDay } from '@/lib/dateOnly';
 
 export type SegmentValidationError = {
   success: false;
@@ -14,10 +14,6 @@ export type SegmentSuccess = {
 };
 
 export type SegmentResult = SegmentSuccess | SegmentValidationError;
-
-function normalizeDay(d: Date) {
-  return startOfDay(d);
-}
 
 async function validateSegment(
   tripId: string,
@@ -39,10 +35,10 @@ async function validateSegment(
     return 'Trip not found';
   }
 
-  const tripStart = normalizeDay(trip.startDate);
-  const tripEnd = normalizeDay(trip.endDate);
-  const segStart = normalizeDay(startDate);
-  const segEnd = normalizeDay(endDate);
+  const tripStart = startOfLocalDay(trip.startDate);
+  const tripEnd = startOfLocalDay(trip.endDate);
+  const segStart = startOfLocalDay(startDate);
+  const segEnd = startOfLocalDay(endDate);
 
   // Check: startDate <= endDate
   if (segStart > segEnd) {
@@ -58,8 +54,8 @@ async function validateSegment(
   const otherSegments = trip.segments.filter(s => s.id !== excludeSegmentId);
 
   for (const existing of otherSegments) {
-    const existStart = normalizeDay(existing.startDate);
-    const existEnd = normalizeDay(existing.endDate);
+    const existStart = startOfLocalDay(existing.startDate);
+    const existEnd = startOfLocalDay(existing.endDate);
 
     // Check if segments overlap
     // Two segments overlap if: segStart <= existEnd AND segEnd >= existStart
@@ -80,8 +76,8 @@ export async function createSegment(
 ): Promise<SegmentResult> {
   try {
     // Convert date strings to Date objects
-    const startDateObj = new Date(startDate + 'T00:00:00');
-    const endDateObj = new Date(endDate + 'T00:00:00');
+    const startDateObj = fromYMD(startDate);
+    const endDateObj = fromYMD(endDate);
 
     // Validate
     const validationError = await validateSegment(tripId, startDateObj, endDateObj);
@@ -129,8 +125,8 @@ export async function updateSegment(
     }
 
     // Convert date strings to Date objects
-    const startDateObj = new Date(startDate + 'T00:00:00');
-    const endDateObj = new Date(endDate + 'T00:00:00');
+    const startDateObj = fromYMD(startDate);
+    const endDateObj = fromYMD(endDate);
 
     // Validate (exclude current segment from overlap check)
     const validationError = await validateSegment(

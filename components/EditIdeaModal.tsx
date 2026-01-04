@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { fromYMD, toYMD } from '@/lib/dateOnly';
 
 interface EditIdeaModalProps {
   idea: {
@@ -23,9 +24,9 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
   // Helper: Convert day number to date string (YYYY-MM-DD)
   const dayNumberToDate = (dayNum: number | null): string => {
     if (!dayNum) return '';
-    const tripStart = new Date(tripStartDate);
-    const targetDate = new Date(tripStart.getTime() + (dayNum - 1) * 24 * 60 * 60 * 1000);
-    return targetDate.toISOString().split('T')[0];
+    const tripStart = fromYMD(tripStartDate);
+    const targetDate = new Date(tripStart.getFullYear(), tripStart.getMonth(), tripStart.getDate() + (dayNum - 1));
+    return toYMD(targetDate);
   };
 
   const [formData, setFormData] = useState({
@@ -40,8 +41,8 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
 
   // Helper: Convert date string (YYYY-MM-DD) to day number
   const dateToDayNumber = (dateStr: string): number => {
-    const tripStart = new Date(tripStartDate);
-    const selected = new Date(dateStr);
+    const tripStart = fromYMD(tripStartDate);
+    const selected = fromYMD(dateStr);
     const diffTime = selected.getTime() - tripStart.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     return diffDays + 1;
@@ -49,7 +50,7 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
 
   // Helper: Format date for display
   const formatDateDisplay = (dateStr: string): string => {
-    const date = new Date(dateStr);
+    const date = fromYMD(dateStr);
     return date.toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
@@ -59,8 +60,8 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
 
   // Helper: Format date range for display
   const formatDateRangeDisplay = (startStr: string, endStr: string): string => {
-    const start = new Date(startStr);
-    const end = new Date(endStr);
+    const start = fromYMD(startStr);
+    const end = fromYMD(endStr);
     const startDay = dateToDayNumber(startStr);
     const endDay = dateToDayNumber(endStr);
 
@@ -81,7 +82,7 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
       setEndDateError('');
     }
     // Revalidate end date if it exists
-    else if (formData.selectedEndDate !== '' && new Date(formData.selectedEndDate) < new Date(value)) {
+    else if (formData.selectedEndDate !== '' && fromYMD(formData.selectedEndDate) < fromYMD(value)) {
       setEndDateError('End date must be after start date');
     } else {
       setEndDateError('');
@@ -92,7 +93,7 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
     setFormData({ ...formData, selectedEndDate: value });
 
     // Validate end date >= start date
-    if (value !== '' && formData.selectedDate !== '' && new Date(value) < new Date(formData.selectedDate)) {
+    if (value !== '' && formData.selectedDate !== '' && fromYMD(value) < fromYMD(formData.selectedDate)) {
       setEndDateError('End date must be after start date');
     } else {
       setEndDateError('');
@@ -103,7 +104,7 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
     e.preventDefault();
 
     // Validate end date
-    if (formData.selectedEndDate !== '' && formData.selectedDate !== '' && new Date(formData.selectedEndDate) < new Date(formData.selectedDate)) {
+    if (formData.selectedEndDate !== '' && formData.selectedDate !== '' && fromYMD(formData.selectedEndDate) < fromYMD(formData.selectedDate)) {
       alert('End date must be after start date');
       return;
     }

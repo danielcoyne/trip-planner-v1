@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import DateRangePicker from "@/components/DateRangePicker"
+import { toYMD } from "@/lib/dateOnly"
 
 export default function NewTripPage() {
   const router = useRouter()
@@ -22,21 +23,13 @@ export default function NewTripPage() {
 
     const formData = new FormData(e.currentTarget)
 
-    // Convert dates to YYYY-MM-DD format
-    const formatDate = (date: Date) => {
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    }
-
     const response = await fetch("/api/trips", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: formData.get("name"),
-        startDate: formatDate(startDate),
-        endDate: formatDate(endDate),
+        startDate: toYMD(startDate),
+        endDate: toYMD(endDate),
         requirements: formData.get("requirements"),
       }),
     })

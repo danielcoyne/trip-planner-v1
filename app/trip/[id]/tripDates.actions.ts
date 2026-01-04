@@ -2,15 +2,11 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { startOfDay } from 'date-fns';
+import { fromYMD, startOfLocalDay } from '@/lib/dateOnly';
 
 export type UpdateDatesResult =
   | { success: true }
   | { success: false; error: string };
-
-function normalizeDay(d: Date) {
-  return startOfDay(d);
-}
 
 export async function updateTripDates(
   tripId: string,
@@ -18,8 +14,8 @@ export async function updateTripDates(
   endDateStr: string    // YYYY-MM-DD
 ): Promise<UpdateDatesResult> {
   try {
-    const newStart = normalizeDay(new Date(startDateStr + 'T00:00:00'));
-    const newEnd = normalizeDay(new Date(endDateStr + 'T00:00:00'));
+    const newStart = startOfLocalDay(fromYMD(startDateStr));
+    const newEnd = startOfLocalDay(fromYMD(endDateStr));
 
     // Validate: newStart <= newEnd
     if (newStart > newEnd) {
@@ -45,8 +41,8 @@ export async function updateTripDates(
     const segmentDeletions: string[] = [];
 
     for (const segment of trip.segments) {
-      const segStart = normalizeDay(segment.startDate);
-      const segEnd = normalizeDay(segment.endDate);
+      const segStart = startOfLocalDay(segment.startDate);
+      const segEnd = startOfLocalDay(segment.endDate);
 
       // Clamp to new trip range
       const clampedStart = segStart < newStart ? newStart : segStart > newEnd ? newEnd : segStart;

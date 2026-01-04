@@ -9,6 +9,7 @@ import EditIdeaModal from '@/components/EditIdeaModal';
 import SegmentsEditor from '@/components/SegmentsEditor';
 import DateRangePicker from '@/components/DateRangePicker';
 import { updateTripDates } from './tripDates.actions';
+import { toYMD, fromYMD } from '@/lib/dateOnly';
 
 interface TripSegment {
   id: string;
@@ -199,8 +200,8 @@ export default function TripDetailPage({
   };
 
   const openEditDatesModal = () => {
-    setEditStartDate(new Date(trip!.startDate));
-    setEditEndDate(new Date(trip!.endDate));
+    setEditStartDate(fromYMD(trip!.startDate));
+    setEditEndDate(fromYMD(trip!.endDate));
     setDatesError('');
     setShowEditDatesModal(true);
   };
@@ -214,18 +215,11 @@ export default function TripDetailPage({
     setSavingDates(true);
     setDatesError('');
 
-    const formatDate = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-
     try {
       const result = await updateTripDates(
         id,
-        formatDate(editStartDate),
-        formatDate(editEndDate)
+        toYMD(editStartDate),
+        toYMD(editEndDate)
       );
 
       if (result.success) {

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { fromYMD } from '../lib/dateOnly';
 
 const prisma = new PrismaClient();
 
@@ -88,16 +89,16 @@ async function main() {
       data: {
         name: 'Italian Adventure',
         destination: 'Italy',
-        startDate: new Date('2026-06-01'),
-        endDate: new Date('2026-06-10'),
+        startDate: fromYMD('2026-06-01'),
+        endDate: fromYMD('2026-06-10'),
         requirements: 'A wonderful trip exploring Rome and Lake Como with a mix of history, culture, and natural beauty.',
         status: 'DRAFT',
         currentRound: 1,
         segments: {
           create: [
             {
-              startDate: new Date('2026-06-01'),
-              endDate: new Date('2026-06-05'),
+              startDate: fromYMD('2026-06-01'),
+              endDate: fromYMD('2026-06-05'),
               placeName: 'Rome',
               lat: 41.9028,
               lng: 12.4964,
@@ -105,8 +106,8 @@ async function main() {
               notes: 'Ancient history and incredible food',
             },
             {
-              startDate: new Date('2026-06-06'),
-              endDate: new Date('2026-06-10'),
+              startDate: fromYMD('2026-06-06'),
+              endDate: fromYMD('2026-06-10'),
               placeName: 'Lake Como',
               lat: 45.9931,
               lng: 9.2661,
