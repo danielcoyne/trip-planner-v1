@@ -26,6 +26,10 @@ export async function POST(request: NextRequest) {
         startDate: toYMD(trip.startDate),
         endDate: toYMD(trip.endDate),
       }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store',
+      }
     });
   } catch (error) {
     console.error('Error creating trip:', error);
