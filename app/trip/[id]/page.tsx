@@ -9,7 +9,7 @@ import EditIdeaModal from '@/components/EditIdeaModal';
 import SegmentsEditor from '@/components/SegmentsEditor';
 import DateRangePicker from '@/components/DateRangePicker';
 import { updateTripDates } from './tripDates.actions';
-import { toYMD, fromYMD } from '@/lib/dateOnly';
+import { toYMD, fromYMD, coerceDateOnly } from '@/lib/dateOnly';
 
 interface TripSegment {
   id: string;
@@ -264,8 +264,8 @@ export default function TripDetailPage({
 
   // Calculate trip days
   const getTripDays = () => {
-    const start = new Date(trip.startDate);
-    const end = new Date(trip.endDate);
+    const start = coerceDateOnly(trip.startDate);
+    const end = coerceDateOnly(trip.endDate);
     const days = [];
     let currentDate = new Date(start);
     let dayNumber = 1;
@@ -427,7 +427,7 @@ export default function TripDetailPage({
               <h1 className="text-4xl font-bold mb-2 text-gray-900 dark:text-white">{trip.name}</h1>
               <div className="flex items-center gap-3">
                 <p className="text-xl text-gray-600 dark:text-gray-300">
-                  {derivedLocation ? `${derivedLocation} • ` : ''}{new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+                  {derivedLocation ? `${derivedLocation} • ` : ''}{coerceDateOnly(trip.startDate).toLocaleDateString()} - {coerceDateOnly(trip.endDate).toLocaleDateString()}
                 </p>
                 <button
                   onClick={openEditDatesModal}

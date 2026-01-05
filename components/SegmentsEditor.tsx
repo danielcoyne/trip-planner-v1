@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { createSegment, updateSegment, deleteSegment } from '@/app/trip/[id]/segments.actions';
 import { buildDisplaySegments, type DisplaySegment } from '@/lib/tripSegments';
+import { coerceDateOnly, toYMD } from '@/lib/dateOnly';
 
 interface TripSegment {
   id: string;
@@ -47,12 +48,12 @@ export default function SegmentsEditor({
 
   // Compute display segments (real + TBD gaps)
   const displaySegments: DisplaySegment[] = buildDisplaySegments(
-    new Date(tripStartDate),
-    new Date(tripEndDate),
+    coerceDateOnly(tripStartDate),
+    coerceDateOnly(tripEndDate),
     realSegments.map(seg => ({
       ...seg,
-      startDate: new Date(seg.startDate),
-      endDate: new Date(seg.endDate),
+      startDate: coerceDateOnly(seg.startDate),
+      endDate: coerceDateOnly(seg.endDate),
     }))
   );
 
@@ -72,8 +73,8 @@ export default function SegmentsEditor({
     setEditingSegment(segment);
     setFormData({
       placeName: segment.placeName,
-      startDate: formatDateForInput(new Date(segment.startDate)),
-      endDate: formatDateForInput(new Date(segment.endDate)),
+      startDate: toYMD(coerceDateOnly(segment.startDate)),
+      endDate: toYMD(coerceDateOnly(segment.endDate)),
       notes: segment.notes || '',
     });
     setError('');
@@ -84,8 +85,8 @@ export default function SegmentsEditor({
     setEditingSegment(null);
     setFormData({
       placeName: '',
-      startDate: formatDateForInput(gap.startDate),
-      endDate: formatDateForInput(gap.endDate),
+      startDate: toYMD(gap.startDate),
+      endDate: toYMD(gap.endDate),
       notes: '',
     });
     setError('');
@@ -104,12 +105,6 @@ export default function SegmentsEditor({
     setError('');
   };
 
-  const formatDateForInput = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
 
   const formatDateForDisplay = (date: Date): string => {
     return date.toLocaleDateString('en-US', {
@@ -309,8 +304,8 @@ export default function SegmentsEditor({
                     required
                     value={formData.startDate}
                     onChange={(e) => handleStartDateChange(e.target.value)}
-                    min={formatDateForInput(new Date(tripStartDate))}
-                    max={formData.endDate || formatDateForInput(new Date(tripEndDate))}
+                    min={tripStartDate}
+                    max={formData.endDate || tripEndDate}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
@@ -324,8 +319,8 @@ export default function SegmentsEditor({
                     required
                     value={formData.endDate}
                     onChange={(e) => handleEndDateChange(e.target.value)}
-                    min={formData.startDate || formatDateForInput(new Date(tripStartDate))}
-                    max={formatDateForInput(new Date(tripEndDate))}
+                    min={formData.startDate || tripStartDate}
+                    max={tripEndDate}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>

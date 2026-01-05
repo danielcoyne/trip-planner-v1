@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { fromYMD } from '@/lib/dateOnly';
+import { fromYMD, toYMD } from '@/lib/dateOnly';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +19,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ trip });
+    // Serialize dates as YYYY-MM-DD strings
+    return NextResponse.json({
+      trip: {
+        ...trip,
+        startDate: toYMD(trip.startDate),
+        endDate: toYMD(trip.endDate),
+      }
+    });
   } catch (error) {
     console.error('Error creating trip:', error);
     return NextResponse.json(
@@ -52,7 +59,19 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      return NextResponse.json({ trip });
+      // Serialize all dates as YYYY-MM-DD strings
+      return NextResponse.json({
+        trip: {
+          ...trip,
+          startDate: toYMD(trip.startDate),
+          endDate: toYMD(trip.endDate),
+          segments: trip.segments?.map(seg => ({
+            ...seg,
+            startDate: toYMD(seg.startDate),
+            endDate: toYMD(seg.endDate),
+          })),
+        }
+      });
     }
 
     // Otherwise fetch all trips
@@ -62,7 +81,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ trips });
+    // Serialize all dates as YYYY-MM-DD strings
+    return NextResponse.json({
+      trips: trips.map(trip => ({
+        ...trip,
+        startDate: toYMD(trip.startDate),
+        endDate: toYMD(trip.endDate),
+      }))
+    });
   } catch (error) {
     console.error('Error fetching trips:', error);
     return NextResponse.json(

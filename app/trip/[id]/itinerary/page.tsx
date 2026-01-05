@@ -8,6 +8,7 @@ import {
   type TripSegment as TripSegmentType,
   type DisplaySegment
 } from '@/lib/tripSegments';
+import { coerceDateOnly } from '@/lib/dateOnly';
 
 interface TripSegment {
   id: string;
@@ -138,8 +139,8 @@ export default function ItineraryPage({
 
   // Calculate trip days
   const getTripDays = () => {
-    const start = new Date(trip.startDate);
-    const end = new Date(trip.endDate);
+    const start = coerceDateOnly(trip.startDate);
+    const end = coerceDateOnly(trip.endDate);
     const days = [];
     let currentDate = new Date(start);
     let dayNumber = 1;
@@ -166,26 +167,27 @@ export default function ItineraryPage({
   // Segment logic - use REAL segments for conversion
   const realSegments: TripSegmentType[] = (trip.segments || []).map(seg => ({
     ...seg,
-    startDate: new Date(seg.startDate),
-    endDate: new Date(seg.endDate),
+    startDate: coerceDateOnly(seg.startDate),
+    endDate: coerceDateOnly(seg.endDate),
   }));
 
   // Build display segments (includes TBD gaps)
   const displaySegments: DisplaySegment[] = buildDisplaySegments(
-    new Date(trip.startDate),
-    new Date(trip.endDate),
+    coerceDateOnly(trip.startDate),
+    coerceDateOnly(trip.endDate),
     realSegments
   );
 
   const hasMultipleDisplaySegments = displaySegments.length > 1;
 
   // Build segment summary from display segments
+  const tripStartDate = coerceDateOnly(trip.startDate);
   const segmentSummary = hasMultipleDisplaySegments
     ? displaySegments.map(seg => ({
         id: seg.id,
         placeName: seg.placeName,
-        dayStart: Math.floor((seg.startDate.getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1,
-        dayEnd: Math.floor((seg.endDate.getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1,
+        dayStart: Math.floor((seg.startDate.getTime() - tripStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1,
+        dayEnd: Math.floor((seg.endDate.getTime() - tripStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1,
       }))
     : [];
 
