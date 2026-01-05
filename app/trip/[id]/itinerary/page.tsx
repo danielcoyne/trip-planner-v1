@@ -28,6 +28,8 @@ interface Trip {
   startDate: string;
   endDate: string;
   requirements: string;
+  coverImageUrl: string | null;
+  coverImageUpdatedAt: string | null;
   segments?: TripSegment[];
 }
 
@@ -402,7 +404,20 @@ export default function ItineraryPage({
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Cover / Hero Section */}
       <div className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 dark:from-blue-800 dark:via-purple-800 dark:to-pink-800 text-white">
-        <div className="absolute inset-0 bg-black opacity-10"></div>
+        {/* Cover Image Background (if present) */}
+        {trip.coverImageUrl && (
+          <>
+            <img
+              src={trip.coverImageUrl}
+              alt="Trip cover"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60"></div>
+          </>
+        )}
+        {!trip.coverImageUrl && (
+          <div className="absolute inset-0 bg-black opacity-10"></div>
+        )}
         <div className="relative max-w-5xl mx-auto px-8 py-20">
           {/* Back button */}
           <button

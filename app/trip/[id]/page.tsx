@@ -27,6 +27,8 @@ interface Trip {
   endDate: string;
   requirements: string;
   reviewToken: string | null;
+  coverImageUrl: string | null;
+  coverImageUpdatedAt: string | null;
   segments?: TripSegment[];
 }
 
@@ -80,6 +82,8 @@ export default function TripDetailPage({
   const [editEndDate, setEditEndDate] = useState<Date | undefined>();
   const [datesError, setDatesError] = useState<string>('');
   const [savingDates, setSavingDates] = useState(false);
+  const [uploadingCoverImage, setUploadingCoverImage] = useState(false);
+  const [coverImageError, setCoverImageError] = useState<string>('');
 
   useEffect(() => {
     fetchTripData();
@@ -232,6 +236,50 @@ export default function TripDetailPage({
       setDatesError('An unexpected error occurred');
     } finally {
       setSavingDates(false);
+    }
+  };
+
+  const handleCoverImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Client-side validation
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+    if (!allowedTypes.includes(file.type)) {
+      setCoverImageError('Invalid file type. Please upload a JPEG, PNG, WebP, or AVIF image.');
+      return;
+    }
+
+    if (file.size > 4_500_000) {
+      setCoverImageError('File is too large. Maximum size is 4.5MB.');
+      return;
+    }
+
+    setUploadingCoverImage(true);
+    setCoverImageError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`/api/trips/${id}/cover-image`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      // Refresh trip data to show new image
+      await fetchTripData();
+    } catch (error) {
+      setCoverImageError(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      setUploadingCoverImage(false);
+      // Reset the input so the same file can be uploaded again if needed
+      event.target.value = '';
     }
   };
 
@@ -444,6 +492,67 @@ export default function TripDetailPage({
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 border border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Client Requirements</h2>
           <p className="text-gray-700 dark:text-gray-300">{trip.requirements}</p>
+        </div>
+
+        {/* Cover Image Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 border border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Cover Image</h2>
+
+          {trip.coverImageUrl ? (
+            <div className="space-y-4">
+              <div className="relative aspect-video w-full max-w-2xl overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                <img
+                  src={trip.coverImageUrl}
+                  alt="Trip cover"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/avif"
+                    onChange={handleCoverImageUpload}
+                    className="hidden"
+                    disabled={uploadingCoverImage}
+                  />
+                  <span className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400">
+                    {uploadingCoverImage ? 'Uploading...' : 'Change Image'}
+                  </span>
+                </label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Max 4.5MB • JPEG, PNG, WebP, or AVIF
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                Add a cover image to make your itinerary more visually appealing when shared with clients.
+              </p>
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/avif"
+                  onChange={handleCoverImageUpload}
+                  className="hidden"
+                  disabled={uploadingCoverImage}
+                />
+                <span className="inline-block px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400">
+                  {uploadingCoverImage ? 'Uploading...' : 'Upload Cover Image'}
+                </span>
+              </label>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Max 4.5MB • JPEG, PNG, WebP, or AVIF
+              </p>
+            </div>
+          )}
+
+          {coverImageError && (
+            <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+              <p className="text-sm text-red-800 dark:text-red-200">{coverImageError}</p>
+            </div>
+          )}
         </div>
 
         {/* Segments Section */}
