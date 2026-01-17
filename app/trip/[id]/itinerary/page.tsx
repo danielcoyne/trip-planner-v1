@@ -283,6 +283,48 @@ export default function ItineraryPage({
     const isMultiDayHotel = idea.category === 'HOTEL' && idea.endDay && idea.endDay > idea.day!;
     const showDayRange = isMultiDayView && isMultiDayHotel;
 
+    // Compact hotel card - smaller since it's repeated info each day
+    if (idea.category === 'HOTEL') {
+      return (
+        <div
+          key={idea.id}
+          className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
+        >
+          <div className="flex items-center gap-3 flex-wrap text-sm">
+            <span className="text-base">🏨</span>
+            <span className="font-medium text-gray-900 dark:text-white">
+              {place.displayName}
+            </span>
+            {showDayRange && (
+              <span className="text-gray-500 dark:text-gray-400">
+                Days {idea.day}–{idea.endDay}
+              </span>
+            )}
+            <span className="text-gray-400 dark:text-gray-500">•</span>
+            <span className="text-gray-500 dark:text-gray-400 truncate max-w-xs">
+              {place.formattedAddress}
+            </span>
+            {place.rating && (
+              <>
+                <span className="text-gray-400 dark:text-gray-500">•</span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  ⭐ {place.rating}
+                </span>
+              </>
+            )}
+            <a
+              href={place.googleMapsUri}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto text-blue-600 dark:text-blue-400 hover:underline text-sm"
+            >
+              Map →
+            </a>
+          </div>
+        </div>
+      );
+    }
+
     // Get reaction badge if reactions exist
     const hasReactions = idea.reactions && idea.reactions.length > 0;
     const reactionTypes = hasReactions
@@ -304,11 +346,6 @@ export default function ItineraryPage({
           <div className="flex-1">
             <h3 className="font-semibold text-xl text-gray-900 dark:text-white mb-1">
               {stateEmojis[idea.state as keyof typeof stateEmojis]} {place.displayName}
-              {showDayRange && (
-                <span className="text-base font-normal text-gray-600 dark:text-gray-400 ml-2">
-                  (Days {idea.day}–{idea.endDay})
-                </span>
-              )}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">{place.formattedAddress}</p>
           </div>
@@ -471,7 +508,7 @@ export default function ItineraryPage({
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
               <h2 className="text-xl font-semibold mb-4">Lodging</h2>
               <div className="space-y-3">
-                {lodgingSummary.map((summary, index) => (
+                {lodgingSummary.map((summary) => (
                   <div
                     key={summary.hotel.id}
                     className="flex items-start gap-3"

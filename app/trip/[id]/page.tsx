@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AddIdeaModal from '@/components/AddIdeaModal';
 import TripMap from '@/components/TripMap';
@@ -84,10 +84,24 @@ export default function TripDetailPage({
   const [savingDates, setSavingDates] = useState(false);
   const [uploadingCoverImage, setUploadingCoverImage] = useState(false);
   const [coverImageError, setCoverImageError] = useState<string>('');
+  const [showCoverPhotoMenu, setShowCoverPhotoMenu] = useState(false);
+  const coverPhotoMenuRef = useRef<HTMLDivElement>(null);
+  const coverPhotoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchTripData();
   }, [id]);
+
+  // Close cover photo menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (coverPhotoMenuRef.current && !coverPhotoMenuRef.current.contains(event.target as Node)) {
+        setShowCoverPhotoMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchTripData = async () => {
     try {
@@ -388,8 +402,56 @@ export default function TripDetailPage({
 
     // Multi-day range text
     const dayRangeText = showDayRange && idea.day && idea.endDay
-      ? `(Days ${idea.day}-${idea.endDay})`
+      ? `Days ${idea.day}-${idea.endDay}`
       : '';
+
+    // Compact hotel card - smaller since it's repeated info each day
+    if (idea.category === 'HOTEL') {
+      return (
+        <div
+          key={idea.id}
+          className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
+        >
+          <div className="flex items-center gap-3 flex-wrap text-sm">
+            <span className="text-base">🏨</span>
+            <span className="font-medium text-gray-900 dark:text-white">
+              {place.displayName}
+            </span>
+            {dayRangeText && (
+              <span className="text-gray-500 dark:text-gray-400">
+                {dayRangeText}
+              </span>
+            )}
+            <span className="text-gray-400 dark:text-gray-500">•</span>
+            <span className="text-gray-500 dark:text-gray-400 truncate max-w-xs">
+              {place.formattedAddress}
+            </span>
+            {place.rating && (
+              <>
+                <span className="text-gray-400 dark:text-gray-500">•</span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  ⭐ {place.rating}
+                </span>
+              </>
+            )}
+            <div className="flex gap-2 ml-auto">
+              <button
+                onClick={() => handleEditIdea(idea)}
+                className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => handleDeleteIdea(idea.id)}
+                className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div
@@ -400,9 +462,6 @@ export default function TripDetailPage({
           <div className="flex-1">
             <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
               {stateEmojis[idea.state as keyof typeof stateEmojis]} {place.displayName}
-              {dayRangeText && (
-                <span className="text-sm font-normal text-gray-600 dark:text-gray-400 ml-2">{dayRangeText}</span>
-              )}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300">{place.formattedAddress}</p>
           </div>
@@ -485,6 +544,75 @@ export default function TripDetailPage({
                 </button>
               </div>
             </div>
+
+            {/* Cover Photo Button */}
+            <div className="relative" ref={coverPhotoMenuRef}>
+              <button
+                onClick={() => setShowCoverPhotoMenu(!showCoverPhotoMenu)}
+                className="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg flex items-center gap-2 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Cover Photo
+              </button>
+
+              {/* Cover Photo dropdown menu */}
+              {showCoverPhotoMenu && (
+                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+                  <div className="p-3">
+                    {trip.coverImageUrl ? (
+                      <>
+                        <div className="mb-3">
+                          <img
+                            src={trip.coverImageUrl}
+                            alt="Cover"
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                        </div>
+                        <label className="block w-full px-3 py-2 text-sm text-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition-colors">
+                          {uploadingCoverImage ? 'Uploading...' : 'Change Photo'}
+                          <input
+                            ref={coverPhotoInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/avif"
+                            onChange={(e) => {
+                              handleCoverImageUpload(e);
+                              setShowCoverPhotoMenu(false);
+                            }}
+                            disabled={uploadingCoverImage}
+                            className="hidden"
+                          />
+                        </label>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                          No cover photo yet
+                        </p>
+                        <label className="block w-full px-3 py-2 text-sm text-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition-colors">
+                          {uploadingCoverImage ? 'Uploading...' : 'Upload Photo'}
+                          <input
+                            ref={coverPhotoInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/avif"
+                            onChange={(e) => {
+                              handleCoverImageUpload(e);
+                              setShowCoverPhotoMenu(false);
+                            }}
+                            disabled={uploadingCoverImage}
+                            className="hidden"
+                          />
+                        </label>
+                      </>
+                    )}
+                    {coverImageError && (
+                      <p className="mt-2 text-xs text-red-600 dark:text-red-400">{coverImageError}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -492,67 +620,6 @@ export default function TripDetailPage({
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 border border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Client Requirements</h2>
           <p className="text-gray-700 dark:text-gray-300">{trip.requirements}</p>
-        </div>
-
-        {/* Cover Image Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Cover Image</h2>
-
-          {trip.coverImageUrl ? (
-            <div className="space-y-4">
-              <div className="relative aspect-video w-full max-w-2xl overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                <img
-                  src={trip.coverImageUrl}
-                  alt="Trip cover"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="flex items-center gap-4">
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/avif"
-                    onChange={handleCoverImageUpload}
-                    className="hidden"
-                    disabled={uploadingCoverImage}
-                  />
-                  <span className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400">
-                    {uploadingCoverImage ? 'Uploading...' : 'Change Image'}
-                  </span>
-                </label>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Max 4.5MB • JPEG, PNG, WebP, or AVIF
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-gray-600 dark:text-gray-400 text-sm">
-                Add a cover image to make your itinerary more visually appealing when shared with clients.
-              </p>
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/avif"
-                  onChange={handleCoverImageUpload}
-                  className="hidden"
-                  disabled={uploadingCoverImage}
-                />
-                <span className="inline-block px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400">
-                  {uploadingCoverImage ? 'Uploading...' : 'Upload Cover Image'}
-                </span>
-              </label>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Max 4.5MB • JPEG, PNG, WebP, or AVIF
-              </p>
-            </div>
-          )}
-
-          {coverImageError && (
-            <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-              <p className="text-sm text-red-800 dark:text-red-200">{coverImageError}</p>
-            </div>
-          )}
         </div>
 
         {/* Segments Section */}
