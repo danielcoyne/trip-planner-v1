@@ -17,23 +17,17 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting idea:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete idea' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to delete idea' }, { status: 500 });
   }
 }
 
 // PATCH /api/ideas/[id] - Update an idea
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const body = await request.json();
 
-    const { category, state, day, endDay, mealSlot, agentNotes } = body;
+    const { category, state, day, endDay, mealSlot, agentNotes, time, externalUrl } = body;
 
     const updatedIdea = await prisma.tripIdea.update({
       where: { id },
@@ -44,15 +38,14 @@ export async function PATCH(
         endDay: endDay !== undefined ? endDay : undefined,
         mealSlot: mealSlot !== undefined ? mealSlot : undefined,
         agentNotes: agentNotes !== undefined ? agentNotes : undefined,
+        time: time !== undefined ? time : undefined,
+        externalUrl: externalUrl !== undefined ? externalUrl : undefined,
       },
     });
 
     return NextResponse.json(updatedIdea);
   } catch (error) {
     console.error('Error updating idea:', error);
-    return NextResponse.json(
-      { error: 'Failed to update idea' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to update idea' }, { status: 500 });
   }
 }

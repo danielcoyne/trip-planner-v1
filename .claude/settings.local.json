@@ -6,7 +6,10 @@
       "Bash(npx prisma studio:*)",
       "Bash(npx prisma migrate dev:*)",
       "Bash(npm install:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(timeout 15 npm run dev:*)",
+      "Bash(npx next build:*)",
+      "WebFetch(domain:rapidapi.com)"
     ]
   }
 }

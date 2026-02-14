@@ -10,6 +10,19 @@ import SegmentsEditor from '@/components/SegmentsEditor';
 import DateRangePicker from '@/components/DateRangePicker';
 import { updateTripDates } from './tripDates.actions';
 import { toYMD, fromYMD, coerceDateOnly } from '@/lib/dateOnly';
+import DraggableIdeaCard from '@/components/DraggableIdeaCard';
+import DroppableDaySection from '@/components/DroppableDaySection';
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 interface TripSegment {
   id: string;
@@ -40,8 +53,12 @@ interface TripIdea {
   status: string;
   day: number | null;
   endDay: number | null;
+  sortOrder: number | null;
   mealSlot: string | null;
   agentNotes: string | null;
+  time: string | null;
+  externalUrl: string | null;
+  photos: Array<{ id: string; url: string; sortOrder: number }>;
   createdAt?: string;
   reactions: Array<{
     id: string;
@@ -61,11 +78,7 @@ interface Place {
   lng: number;
 }
 
-export default function TripDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -87,6 +100,11 @@ export default function TripDetailPage({
   const [showCoverPhotoMenu, setShowCoverPhotoMenu] = useState(false);
   const coverPhotoMenuRef = useRef<HTMLDivElement>(null);
   const coverPhotoInputRef = useRef<HTMLInputElement>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
+  );
 
   useEffect(() => {
     fetchTripData();
@@ -114,8 +132,8 @@ export default function TripDetailPage({
       setIdeas(ideasData.ideas);
 
       // Count feedback (ideas with reactions)
-      const reactedIdeas = ideasData.ideas.filter((idea: any) => 
-        idea.reactions && idea.reactions.length > 0
+      const reactedIdeas = ideasData.ideas.filter(
+        (idea: any) => idea.reactions && idea.reactions.length > 0
       );
       setFeedbackCount(reactedIdeas.length);
 
@@ -125,7 +143,7 @@ export default function TripDetailPage({
 
       for (const placeId of placeIds) {
         if (typeof placeId !== 'string') continue;
-        
+
         try {
           const placeResponse = await fetch(`/api/places/${placeId}`);
           const placeData = await placeResponse.json();
@@ -133,7 +151,7 @@ export default function TripDetailPage({
             // Add placeId to the place object
             places[placeId] = {
               ...placeData.place,
-              placeId: placeId
+              placeId: placeId,
             };
           }
         } catch (error) {
@@ -157,10 +175,10 @@ export default function TripDetailPage({
         body: JSON.stringify({ tripId: id }),
       });
       const data = await response.json();
-      
+
       // Refresh trip data to get the new token
       await fetchTripData();
-      
+
       alert('Review link generated! Copy the URL from the box below.');
     } catch (error) {
       console.error('Error generating review link:', error);
@@ -203,12 +221,7 @@ export default function TripDetailPage({
         body: JSON.stringify(updates),
       });
 
-      if (response.ok) {
-        setShowEditModal(false);
-        setEditingIdea(null);
-        // Refresh the ideas list
-        await fetchTripData();
-      } else {
+      if (!response.ok) {
         alert('Failed to update idea');
       }
     } catch (error) {
@@ -234,11 +247,7 @@ export default function TripDetailPage({
     setDatesError('');
 
     try {
-      const result = await updateTripDates(
-        id,
-        toYMD(editStartDate),
-        toYMD(editEndDate)
-      );
+      const result = await updateTripDates(id, toYMD(editStartDate), toYMD(editEndDate));
 
       if (result.success) {
         setShowEditDatesModal(false);
@@ -297,6 +306,70 @@ export default function TripDetailPage({
     }
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const ideaId = active.id as string;
+    const overId = over.id as string;
+
+    // Determine target day
+    let newDay: number | null = null;
+    const overIdea = ideas.find((i) => i.id === overId);
+    if (overIdea) {
+      newDay = overIdea.day;
+    } else if (overId === 'day-unassigned') {
+      newDay = null;
+    } else if (overId.startsWith('day-')) {
+      newDay = parseInt(overId.replace('day-', ''), 10);
+    }
+
+    // Determine sort order based on position in destination list
+    const destIdeas = sortIdeasForDay(
+      ideas.filter((i) => {
+        if (i.id === ideaId) return false;
+        if (newDay === null) return !i.day;
+        if (!i.day) return false;
+        if (!i.endDay) return i.day === newDay;
+        return i.day <= newDay && newDay <= i.endDay;
+      })
+    );
+
+    let newSortOrder = destIdeas.length;
+    if (overIdea) {
+      const overIndex = destIdeas.findIndex((i) => i.id === overId);
+      if (overIndex >= 0) newSortOrder = overIndex;
+    }
+
+    // Optimistic update
+    setIdeas((prev) =>
+      prev.map((idea) =>
+        idea.id === ideaId ? { ...idea, day: newDay, sortOrder: newSortOrder } : idea
+      )
+    );
+
+    try {
+      await fetch('/api/ideas/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ideaId, newDay, newSortOrder }),
+      });
+      await fetchTripData();
+    } catch (error) {
+      console.error('Error reordering idea:', error);
+      await fetchTripData();
+    }
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
@@ -320,9 +393,11 @@ export default function TripDetailPage({
   // Derive location line from REAL segments only
   const realSegments = trip.segments || [];
   const derivedLocation =
-    realSegments.length === 0 ? '' :
-    realSegments.length === 1 ? realSegments[0].placeName :
-    realSegments.map(s => s.placeName).join(' → ');
+    realSegments.length === 0
+      ? ''
+      : realSegments.length === 1
+        ? realSegments[0].placeName
+        : realSegments.map((s) => s.placeName).join(' → ');
 
   // Calculate trip days
   const getTripDays = () => {
@@ -339,8 +414,8 @@ export default function TripDetailPage({
         formatted: currentDate.toLocaleDateString('en-US', {
           month: 'long',
           day: 'numeric',
-          year: 'numeric'
-        })
+          year: 'numeric',
+        }),
       });
       currentDate.setDate(currentDate.getDate() + 1);
       dayNumber++;
@@ -352,7 +427,7 @@ export default function TripDetailPage({
 
   // Group ideas by day
   const getIdeasForDay = (dayNumber: number) => {
-    return ideas.filter(idea => {
+    return ideas.filter((idea) => {
       if (!idea.day) return false;
       // Single-day idea
       if (!idea.endDay) return idea.day === dayNumber;
@@ -362,35 +437,86 @@ export default function TripDetailPage({
   };
 
   // Get unassigned ideas
-  const unassignedIdeas = ideas.filter(idea => !idea.day);
+  const unassignedIdeas = ideas.filter((idea) => !idea.day);
+  const activeIdea = activeId ? ideas.find((i) => i.id === activeId) || null : null;
 
   // Sort ideas within a day
   const sortIdeasForDay = (dayIdeas: TripIdea[]) => {
-    const mealOrder = { BREAKFAST: 1, LUNCH: 2, DINNER: 3, SNACK: 4 };
+    const mealOrder: Record<string, number> = { BREAKFAST: 1, LUNCH: 2, DINNER: 3, SNACK: 4 };
 
     return dayIdeas.sort((a, b) => {
-      // Hotels first
-      if (a.category === 'HOTEL' && b.category !== 'HOTEL') return -1;
-      if (a.category !== 'HOTEL' && b.category === 'HOTEL') return 1;
+      // 1. sortOrder ascending (nulls last)
+      const aSort = a.sortOrder ?? Infinity;
+      const bSort = b.sortOrder ?? Infinity;
+      if (aSort !== bSort) return aSort - bSort;
 
-      // Then by meal slot
-      const aMeal = a.mealSlot ? mealOrder[a.mealSlot as keyof typeof mealOrder] || 99 : 99;
-      const bMeal = b.mealSlot ? mealOrder[b.mealSlot as keyof typeof mealOrder] || 99 : 99;
+      // 2. Hotels/Airbnbs first
+      const aIsLodging = a.category === 'HOTEL' || a.category === 'AIRBNB';
+      const bIsLodging = b.category === 'HOTEL' || b.category === 'AIRBNB';
+      if (aIsLodging && !bIsLodging) return -1;
+      if (!aIsLodging && bIsLodging) return 1;
+
+      // 3. Time ascending (HH:MM strings sort correctly)
+      const aTime = a.time || '';
+      const bTime = b.time || '';
+      if (aTime !== bTime) return aTime < bTime ? -1 : 1;
+
+      // 4. Meal slot order
+      const aMeal = a.mealSlot ? mealOrder[a.mealSlot] || 99 : 99;
+      const bMeal = b.mealSlot ? mealOrder[b.mealSlot] || 99 : 99;
       if (aMeal !== bMeal) return aMeal - bMeal;
 
-      // Then by creation time
+      // 5. createdAt
       return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
     });
   };
 
-  // State emoji mapping
-  const stateEmojis = {
-    ANCHOR: '🎯',
-    FLEXIBLE: '🔄',
-    SPONTANEOUS: '✨'
+  // Category emoji mapping
+  const categoryEmojis: Record<string, string> = {
+    RESTAURANT: '🍽️',
+    COFFEE: '☕',
+    BAR: '🍸',
+    ATTRACTION: '📍',
+    MUSEUM: '🏛️',
+    TOUR: '🚶',
+    HOTEL: '🏨',
+    AIRBNB: '🏠',
+    ACTIVITY: '🎯',
+    TRANSPORT: '🚗',
   };
 
-  const renderIdeaCard = (idea: TripIdea, showDayRange = false) => {
+  const categoryLabels: Record<string, string> = {
+    RESTAURANT: 'Restaurant',
+    COFFEE: 'Coffee & Café',
+    BAR: 'Bar & Cocktails',
+    ATTRACTION: 'Attraction',
+    MUSEUM: 'Museum',
+    TOUR: 'Tour',
+    HOTEL: 'Hotel',
+    AIRBNB: 'Airbnb / VRBO',
+    ACTIVITY: 'Activity',
+    TRANSPORT: 'Transport',
+  };
+
+  const stateDisplay: Record<string, { dot: string; label: string }> = {
+    ANCHOR: { dot: '🔴', label: 'Must-do' },
+    FLEXIBLE: { dot: '🟡', label: 'May-do' },
+    SPONTANEOUS: { dot: '🟢', label: 'Spontaneous' },
+  };
+
+  // Format time "19:30" → "7:30 PM"
+  const formatTime = (timeStr: string): string => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
+  const renderIdeaCard = (
+    idea: TripIdea,
+    showDayRange = false,
+    currentDayNumber: number | null = null
+  ) => {
     const place = placesCache[idea.placeId];
     if (!place) return null;
 
@@ -400,70 +526,170 @@ export default function TripDetailPage({
       SPONTANEOUS: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
     };
 
-    // Multi-day range text
-    const dayRangeText = showDayRange && idea.day && idea.endDay
-      ? `Days ${idea.day}-${idea.endDay}`
-      : '';
+    const isAccommodation = idea.category === 'HOTEL' || idea.category === 'AIRBNB';
+    const isFirstDayOfStay = idea.day === currentDayNumber || currentDayNumber === null;
 
-    // Compact hotel card - smaller since it's repeated info each day
-    if (idea.category === 'HOTEL') {
+    // Compact "continued" card for subsequent days of a stay
+    if (isAccommodation && !isFirstDayOfStay) {
       return (
         <div
           key={idea.id}
           className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
         >
           <div className="flex items-center gap-3 flex-wrap text-sm">
-            <span className="text-base">🏨</span>
-            <span className="font-medium text-gray-900 dark:text-white">
-              {place.displayName}
-            </span>
-            {dayRangeText && (
-              <span className="text-gray-500 dark:text-gray-400">
-                {dayRangeText}
-              </span>
-            )}
+            <span className="text-base">{categoryEmojis[idea.category] || '📍'}</span>
+            <span className="font-medium text-gray-900 dark:text-white">{place.displayName}</span>
+            <span className="text-gray-400 dark:text-gray-500 italic">(continued)</span>
             <span className="text-gray-400 dark:text-gray-500">•</span>
             <span className="text-gray-500 dark:text-gray-400 truncate max-w-xs">
               {place.formattedAddress}
             </span>
-            {place.rating && (
+            {idea.externalUrl && (
               <>
                 <span className="text-gray-400 dark:text-gray-500">•</span>
-                <span className="text-gray-500 dark:text-gray-400">
-                  ⭐ {place.rating}
-                </span>
+                <a
+                  href={idea.externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  View Property →
+                </a>
               </>
             )}
-            <div className="flex gap-2 ml-auto">
-              <button
-                onClick={() => handleEditIdea(idea)}
-                className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => handleDeleteIdea(idea.id)}
-                className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
-              >
-                Delete
-              </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Full-size accommodation card (first day of stay or unassigned)
+    if (isAccommodation && isFirstDayOfStay) {
+      const nights = idea.day && idea.endDay ? idea.endDay - idea.day : null;
+      const checkinDay = idea.day ? tripDays.find((d) => d.number === idea.day) : null;
+      const checkoutDay = idea.endDay ? tripDays.find((d) => d.number === idea.endDay) : null;
+      const checkinFormatted = checkinDay
+        ? checkinDay.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : null;
+      const checkoutFormatted = checkoutDay
+        ? checkoutDay.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : null;
+
+      return (
+        <div
+          key={idea.id}
+          className="border-2 rounded-lg p-4 bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800"
+        >
+          <div className="flex gap-4">
+            {idea.photos && idea.photos.length > 0 && (
+              <img
+                src={idea.photos[0].url}
+                alt=""
+                className="w-[120px] h-20 rounded-lg object-cover flex-shrink-0"
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
+                    {categoryEmojis[idea.category] || '📍'} {place.displayName}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    {place.formattedAddress}
+                  </p>
+                  {place.rating && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                      ⭐ {place.rating}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2 ml-4">
+                  <button
+                    onClick={() => handleEditIdea(idea)}
+                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteIdea(idea.id)}
+                    className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+
+              {checkinFormatted && (
+                <p className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">
+                  Check-in {checkinFormatted}
+                  {checkoutFormatted && ` → Check-out ${checkoutFormatted}`}
+                  {nights && ` (${nights} night${nights > 1 ? 's' : ''})`}
+                </p>
+              )}
+
+              <div className="flex items-center gap-1.5 mt-1">
+                <span>{stateDisplay[idea.state]?.dot}</span>
+                <span className="text-xs text-gray-600 dark:text-gray-400">
+                  {stateDisplay[idea.state]?.label}
+                </span>
+              </div>
+
+              {idea.agentNotes && (
+                <div className="mt-2 p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                  <p className="font-medium text-sm mb-1 text-gray-900 dark:text-white">
+                    Agent Notes:
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{idea.agentNotes}</p>
+                </div>
+              )}
+
+              <div className="mt-2 flex gap-4">
+                {idea.category === 'AIRBNB' && idea.externalUrl ? (
+                  <a
+                    href={idea.externalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                  >
+                    View Property →
+                  </a>
+                ) : (
+                  <a
+                    href={place.googleMapsUri}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                  >
+                    View on Google Maps →
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>
       );
     }
 
-    return (
-      <div
-        key={idea.id}
-        className={`border-2 rounded-lg p-4 ${stateColors[idea.state as keyof typeof stateColors]}`}
-      >
+    const cardContent = (
+      <>
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
-            <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
-              {stateEmojis[idea.state as keyof typeof stateEmojis]} {place.displayName}
+            <h3 className="font-semibold text-lg text-gray-900 dark:text-white flex items-center gap-2 flex-wrap">
+              <span>
+                {categoryEmojis[idea.category] || '📍'} {place.displayName}
+              </span>
+              {idea.time && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                  {formatTime(idea.time)}
+                </span>
+              )}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300">{place.formattedAddress}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span>{stateDisplay[idea.state]?.dot}</span>
+              <span className="text-xs text-gray-600 dark:text-gray-400">
+                {stateDisplay[idea.state]?.label}
+              </span>
+            </div>
           </div>
           <div className="flex gap-2 ml-4">
             <button
@@ -484,7 +710,10 @@ export default function TripDetailPage({
         <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
           <div className="flex gap-4">
             <span className="font-medium">Category:</span>
-            <span>{idea.category}</span>
+            <span>
+              {categoryEmojis[idea.category] || '📍'}{' '}
+              {categoryLabels[idea.category] || idea.category}
+            </span>
           </div>
           {idea.mealSlot && (
             <div className="flex gap-4">
@@ -514,6 +743,36 @@ export default function TripDetailPage({
         >
           View on Google Maps →
         </a>
+        {idea.externalUrl && (
+          <a
+            href={idea.externalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 ml-4 inline-block text-blue-600 dark:text-blue-400 hover:underline text-sm"
+          >
+            View Property →
+          </a>
+        )}
+      </>
+    );
+
+    return (
+      <div
+        key={idea.id}
+        className={`border-2 rounded-lg p-4 ${stateColors[idea.state as keyof typeof stateColors]}`}
+      >
+        {idea.photos && idea.photos.length > 0 ? (
+          <div className="flex gap-4">
+            <img
+              src={idea.photos[0].url}
+              alt=""
+              className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+            />
+            <div className="flex-1 min-w-0">{cardContent}</div>
+          </div>
+        ) : (
+          cardContent
+        )}
       </div>
     );
   };
@@ -534,7 +793,9 @@ export default function TripDetailPage({
               <h1 className="text-4xl font-bold mb-2 text-gray-900 dark:text-white">{trip.name}</h1>
               <div className="flex items-center gap-3">
                 <p className="text-xl text-gray-600 dark:text-gray-300">
-                  {derivedLocation ? `${derivedLocation} • ` : ''}{coerceDateOnly(trip.startDate).toLocaleDateString()} - {coerceDateOnly(trip.endDate).toLocaleDateString()}
+                  {derivedLocation ? `${derivedLocation} • ` : ''}
+                  {coerceDateOnly(trip.startDate).toLocaleDateString()} -{' '}
+                  {coerceDateOnly(trip.endDate).toLocaleDateString()}
                 </p>
                 <button
                   onClick={openEditDatesModal}
@@ -552,7 +813,12 @@ export default function TripDetailPage({
                 className="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg flex items-center gap-2 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
                 </svg>
                 Cover Photo
               </button>
@@ -607,7 +873,9 @@ export default function TripDetailPage({
                       </>
                     )}
                     {coverImageError && (
-                      <p className="mt-2 text-xs text-red-600 dark:text-red-400">{coverImageError}</p>
+                      <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+                        {coverImageError}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -618,7 +886,9 @@ export default function TripDetailPage({
 
         {/* Client Requirements */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Client Requirements</h2>
+          <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
+            Client Requirements
+          </h2>
           <p className="text-gray-700 dark:text-gray-300">{trip.requirements}</p>
         </div>
 
@@ -655,10 +925,14 @@ export default function TripDetailPage({
 
         {/* Review Link Section */}
         <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Share with Client</h2>
+          <h2 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">
+            Share with Client
+          </h2>
           {reviewUrl ? (
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Copy this link to share with your client:</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                Copy this link to share with your client:
+              </p>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -745,50 +1019,108 @@ export default function TripDetailPage({
 
             {ideas.length === 0 ? (
               <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                <p className="text-gray-500 dark:text-gray-400 mb-4">No ideas yet. Start adding some!</p>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  No ideas yet. Start adding some!
+                </p>
               </div>
             ) : (
-              <div className="space-y-8">
-                {/* Day-by-Day Sections */}
-                {tripDays.map(day => {
-                  const dayIdeas = sortIdeasForDay(getIdeasForDay(day.number));
-                  if (dayIdeas.length === 0) return null;
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragCancel={handleDragCancel}
+              >
+                <div className="space-y-8">
+                  {/* Day-by-Day Sections */}
+                  {tripDays.map((day) => {
+                    const dayIdeas = sortIdeasForDay(getIdeasForDay(day.number));
 
-                  return (
-                    <div key={day.number}>
-                      <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-                        Day {day.number} - {day.formatted}
-                      </h3>
-                      <div className="grid gap-4">
-                        {dayIdeas.map(idea => renderIdeaCard(idea, true))}
+                    // Check if this day is the first day of a segment with notes
+                    const segmentWithNotes = realSegments.find((seg) => {
+                      const segStart = coerceDateOnly(seg.startDate);
+                      return segStart.getTime() === day.date.getTime() && seg.notes;
+                    });
+
+                    return (
+                      <div key={day.number}>
+                        {segmentWithNotes && (
+                          <div className="mb-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
+                            <h4 className="font-semibold text-amber-900 dark:text-amber-200">
+                              {segmentWithNotes.placeName} —{' '}
+                              {coerceDateOnly(segmentWithNotes.startDate).toLocaleDateString(
+                                'en-US',
+                                { month: 'short', day: 'numeric' }
+                              )}
+                              –
+                              {coerceDateOnly(segmentWithNotes.endDate).toLocaleDateString(
+                                'en-US',
+                                { month: 'short', day: 'numeric' }
+                              )}
+                            </h4>
+                            <p className="mt-1 text-sm text-amber-800 dark:text-amber-300 whitespace-pre-line">
+                              {segmentWithNotes.notes}
+                            </p>
+                          </div>
+                        )}
+                        <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+                          Day {day.number} - {day.formatted}
+                        </h3>
+                        <DroppableDaySection dayNumber={day.number}>
+                          <SortableContext
+                            items={dayIdeas.map((i) => i.id)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div className="grid gap-4">
+                              {dayIdeas.map((idea) => (
+                                <DraggableIdeaCard key={idea.id} id={idea.id}>
+                                  {renderIdeaCard(idea, true, day.number)}
+                                </DraggableIdeaCard>
+                              ))}
+                            </div>
+                          </SortableContext>
+                        </DroppableDaySection>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
 
-                {/* Unassigned Ideas */}
-                {unassignedIdeas.length > 0 && (
+                  {/* Unassigned Ideas */}
                   <div>
                     <h3 className="text-xl font-bold mb-4 text-gray-700 dark:text-gray-300">
                       Ideas Not Yet Assigned to Days
                     </h3>
-                    <div className="grid gap-4">
-                      {unassignedIdeas.map(idea => renderIdeaCard(idea, false))}
-                    </div>
+                    <DroppableDaySection dayNumber={null}>
+                      <SortableContext
+                        items={unassignedIdeas.map((i) => i.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="grid gap-4">
+                          {unassignedIdeas.map((idea) => (
+                            <DraggableIdeaCard key={idea.id} id={idea.id}>
+                              {renderIdeaCard(idea, false, null)}
+                            </DraggableIdeaCard>
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DroppableDaySection>
                   </div>
-                )}
-              </div>
+                </div>
+
+                <DragOverlay>
+                  {activeIdea ? (
+                    <div className="rotate-2 shadow-2xl">
+                      {renderIdeaCard(activeIdea, !!activeIdea.day, activeIdea.day)}
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
             )}
           </div>
         )}
 
-        {activeTab === 'feedback' && (
-          <ReactionsView ideas={ideas} placesCache={placesCache} />
-        )}
+        {activeTab === 'feedback' && <ReactionsView ideas={ideas} placesCache={placesCache} />}
 
-        {activeTab === 'map' && (
-          <TripMap ideas={ideas} placesCache={placesCache} />
-        )}
+        {activeTab === 'map' && <TripMap ideas={ideas} placesCache={placesCache} />}
 
         {/* Add Idea Modal */}
         <AddIdeaModal
@@ -812,6 +1144,7 @@ export default function TripDetailPage({
               setEditingIdea(null);
             }}
             onSave={handleSaveEdit}
+            onSaved={() => fetchTripData()}
           />
         )}
 

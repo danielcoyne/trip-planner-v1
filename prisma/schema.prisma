@@ -91,12 +91,27 @@ model TripIdea {
   status       String          @default("SUGGESTED")
   roundCreated Int             @default(1)
   suggestedBy  String          @default("AGENT")
+  sortOrder    Int?
+  time         String?
+  externalUrl  String?
   reactions    IdeaReaction[]
+  photos       EventPhoto[]
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
-  
+
   @@index([tripId])
   @@index([placeId])
+}
+
+model EventPhoto {
+  id        String   @id @default(cuid())
+  ideaId    String
+  idea      TripIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([ideaId])
 }
 
 model GooglePlaceCache {

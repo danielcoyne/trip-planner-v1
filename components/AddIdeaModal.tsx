@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import PlaceSearch from './PlaceSearch';
 
 interface Place {
@@ -20,7 +20,14 @@ interface AddIdeaModalProps {
   onIdeaAdded: () => void;
 }
 
-export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpen, onClose, onIdeaAdded }: AddIdeaModalProps) {
+export default function AddIdeaModal({
+  tripId,
+  tripStartDate,
+  tripEndDate,
+  isOpen,
+  onClose,
+  onIdeaAdded,
+}: AddIdeaModalProps) {
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [category, setCategory] = useState('RESTAURANT');
   const [state, setState] = useState('FLEXIBLE');
@@ -30,6 +37,13 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
   const [agentNotes, setAgentNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [endDateError, setEndDateError] = useState<string>('');
+  const [time, setTime] = useState('');
+  const [externalUrl, setExternalUrl] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isMultiDay = category === 'HOTEL' || category === 'AIRBNB';
 
   if (!isOpen) return null;
 
@@ -48,7 +62,7 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
     return date.toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -103,7 +117,11 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
     }
 
     // Validate end date
-    if (selectedEndDate !== '' && selectedDate !== '' && new Date(selectedEndDate) < new Date(selectedDate)) {
+    if (
+      selectedEndDate !== '' &&
+      selectedDate !== '' &&
+      new Date(selectedEndDate) < new Date(selectedDate)
+    ) {
       alert('End date must be after start date');
       return;
     }
@@ -129,10 +147,29 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
           endDay,
           mealSlot: mealSlot || null,
           agentNotes: agentNotes || null,
+          time: time || null,
+          externalUrl: externalUrl || null,
         }),
       });
 
       if (response.ok) {
+        const data = await response.json();
+        const newIdeaId = data.idea.id;
+
+        // Upload photos sequentially
+        if (selectedFiles.length > 0) {
+          for (let i = 0; i < selectedFiles.length; i++) {
+            setUploadProgress(`Uploading photo ${i + 1} of ${selectedFiles.length}...`);
+            const formData = new FormData();
+            formData.append('file', selectedFiles[i]);
+            await fetch(`/api/ideas/${newIdeaId}/photos`, {
+              method: 'POST',
+              body: formData,
+            });
+          }
+          setUploadProgress('');
+        }
+
         // Reset form
         setSelectedPlace(null);
         setCategory('RESTAURANT');
@@ -142,6 +179,9 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
         setMealSlot('');
         setAgentNotes('');
         setEndDateError('');
+        setTime('');
+        setExternalUrl('');
+        setSelectedFiles([]);
 
         onIdeaAdded();
         onClose();
@@ -182,8 +222,12 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
               />
               {selectedPlace && (
                 <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="font-medium text-blue-900 dark:text-blue-100">{selectedPlace.displayName}</div>
-                  <div className="text-sm text-blue-700 dark:text-blue-300">{selectedPlace.formattedAddress}</div>
+                  <div className="font-medium text-blue-900 dark:text-blue-100">
+                    {selectedPlace.displayName}
+                  </div>
+                  <div className="text-sm text-blue-700 dark:text-blue-300">
+                    {selectedPlace.formattedAddress}
+                  </div>
                 </div>
               )}
             </div>
@@ -199,11 +243,15 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="RESTAURANT">Restaurant</option>
+                <option value="COFFEE">Coffee &amp; Caf&eacute;</option>
+                <option value="BAR">Bar &amp; Cocktails</option>
                 <option value="ATTRACTION">Attraction</option>
+                <option value="MUSEUM">Museum</option>
+                <option value="TOUR">Tour</option>
                 <option value="HOTEL">Hotel</option>
+                <option value="AIRBNB">Airbnb / VRBO</option>
                 <option value="ACTIVITY">Activity</option>
                 <option value="TRANSPORT">Transport</option>
-                <option value="GENERAL">General</option>
               </select>
             </div>
 
@@ -217,16 +265,16 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
                 onChange={(e) => setState(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
-                <option value="ANCHOR">Anchor - Must-do, time-sensitive</option>
-                <option value="FLEXIBLE">Flexible - Do if nearby</option>
-                <option value="SPONTANEOUS">Spontaneous - Nice-to-have</option>
+                <option value="ANCHOR">Must-do</option>
+                <option value="FLEXIBLE">May-do</option>
+                <option value="SPONTANEOUS">Spontaneous</option>
               </select>
             </div>
 
             {/* Date */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Date (optional)
+                {isMultiDay ? 'Check-in Date (optional)' : 'Date (optional)'}
               </label>
               <input
                 type="date"
@@ -243,13 +291,27 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
               )}
             </div>
 
-            {/* End Date (only show if date is selected) */}
-            {selectedDate !== '' && (
+            {/* Time (single-day categories only) */}
+            {!isMultiDay && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  End Date (optional)
+                  Time (optional)
                 </label>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">For multi-day stays (e.g., hotels)</p>
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+            )}
+
+            {/* Check-out Date (multi-day categories only) */}
+            {isMultiDay && selectedDate !== '' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Check-out Date (optional)
+                </label>
                 <input
                   type="date"
                   min={selectedDate}
@@ -257,7 +319,9 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
                   value={selectedEndDate}
                   onChange={(e) => handleEndDateChange(e.target.value)}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                    endDateError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    endDateError
+                      ? 'border-red-500 dark:border-red-500'
+                      : 'border-gray-300 dark:border-gray-600'
                   }`}
                 />
                 {selectedEndDate && (
@@ -268,6 +332,22 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
                 {endDateError && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">{endDateError}</p>
                 )}
+              </div>
+            )}
+
+            {/* Property Link (AIRBNB only) */}
+            {category === 'AIRBNB' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Property Link (optional)
+                </label>
+                <input
+                  type="url"
+                  value={externalUrl}
+                  onChange={(e) => setExternalUrl(e.target.value)}
+                  placeholder="https://airbnb.com/rooms/..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                />
               </div>
             )}
 
@@ -305,6 +385,51 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
               />
             </div>
 
+            {/* Photos */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Photos (optional)
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                multiple
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setSelectedFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+                  }
+                  e.target.value = '';
+                }}
+                className="w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100"
+              />
+              {selectedFiles.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto mt-2 pb-1">
+                  {selectedFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className="relative flex-shrink-0 w-20 h-20 rounded-lg border border-gray-200 dark:border-gray-600"
+                    >
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={file.name}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
+                        }
+                        className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Buttons */}
             <div className="flex gap-3">
               <button
@@ -319,7 +444,7 @@ export default function AddIdeaModal({ tripId, tripStartDate, tripEndDate, isOpe
                 disabled={!selectedPlace || loading}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
               >
-                {loading ? 'Adding...' : 'Add Idea'}
+                {uploadProgress || (loading ? 'Adding...' : 'Add Idea')}
               </button>
             </div>
           </form>
