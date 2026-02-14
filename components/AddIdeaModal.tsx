@@ -2,14 +2,7 @@
 
 import { useState, useRef } from 'react';
 import PlaceSearch from './PlaceSearch';
-
-interface Place {
-  placeId: string;
-  displayName: string;
-  formattedAddress: string;
-  types: string[];
-  rating?: number;
-}
+import type { PlaceSearchResult } from '@/types/trip';
 
 interface AddIdeaModalProps {
   tripId: string;
@@ -28,7 +21,7 @@ export default function AddIdeaModal({
   onClose,
   onIdeaAdded,
 }: AddIdeaModalProps) {
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSearchResult | null>(null);
   const [category, setCategory] = useState('RESTAURANT');
   const [state, setState] = useState('FLEXIBLE');
   const [selectedDate, setSelectedDate] = useState<string>('');

@@ -1,32 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-
-interface PlaceCache {
-  placeId: string;
-  displayName: string;
-  formattedAddress: string;
-  lat: number;
-  lng: number;
-  rating: number | null;
-  googleMapsUri: string;
-}
-
-interface TripIdea {
-  id: string;
-  placeId: string;
-  category: string;
-  state: string;
-  day: number | null;
-  endDay: number | null;
-  mealSlot: string | null;
-  agentNotes: string | null;
-  status: string;
-}
+import type { TripIdea, Place } from '@/types/trip';
 
 interface TripMapProps {
   ideas: TripIdea[];
-  placesCache: Record<string, PlaceCache>;
+  placesCache: Record<string, Place>;
 }
 
 export default function TripMap({ ideas, placesCache }: TripMapProps) {
@@ -139,7 +118,7 @@ export default function TripMap({ ideas, placesCache }: TripMapProps) {
     }
   };
 
-  const createInfoWindowContent = (idea: TripIdea, place: PlaceCache): string => {
+  const createInfoWindowContent = (idea: TripIdea, place: Place): string => {
     const stateEmoji = idea.state === 'ANCHOR' ? '⚓' : idea.state === 'FLEXIBLE' ? '↕️' : '⏱️';
     const dayText = idea.day ? `Day ${idea.day}` : '';
     const ratingText = place.rating ? `⭐ ${place.rating.toFixed(1)}` : '';

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { del } from '@vercel/blob';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 // DELETE /api/ideas/[id]/photos/[photoId] - Delete a photo
 export async function DELETE(

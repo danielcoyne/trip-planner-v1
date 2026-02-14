@@ -4,14 +4,7 @@ import { useState } from 'react';
 import { createSegment, updateSegment, deleteSegment } from '@/app/trip/[id]/segments.actions';
 import { buildDisplaySegments, type DisplaySegment } from '@/lib/tripSegments';
 import { coerceDateOnly, toYMD } from '@/lib/dateOnly';
-
-interface TripSegment {
-  id: string;
-  startDate: string;
-  endDate: string;
-  placeName: string;
-  notes: string | null;
-}
+import type { TripSegment } from '@/types/trip';
 
 interface SegmentsEditorProps {
   tripId: string;

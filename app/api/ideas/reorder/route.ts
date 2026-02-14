@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 // POST /api/ideas/reorder - Move a single idea to a new day/position
 export async function POST(request: NextRequest) {

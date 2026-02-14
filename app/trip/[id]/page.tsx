@@ -23,60 +23,7 @@ import {
 } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-
-interface TripSegment {
-  id: string;
-  startDate: string;
-  endDate: string;
-  placeName: string;
-  notes: string | null;
-}
-
-interface Trip {
-  id: string;
-  name: string;
-  destination: string | null;
-  startDate: string;
-  endDate: string;
-  requirements: string;
-  reviewToken: string | null;
-  coverImageUrl: string | null;
-  coverImageUpdatedAt: string | null;
-  segments?: TripSegment[];
-}
-
-interface TripIdea {
-  id: string;
-  placeId: string;
-  category: string;
-  state: string;
-  status: string;
-  day: number | null;
-  endDay: number | null;
-  sortOrder: number | null;
-  mealSlot: string | null;
-  agentNotes: string | null;
-  time: string | null;
-  externalUrl: string | null;
-  photos: Array<{ id: string; url: string; sortOrder: number }>;
-  createdAt?: string;
-  reactions: Array<{
-    id: string;
-    reaction: string;
-    clientNotes: string | null;
-    createdAt: string;
-  }>;
-}
-
-interface Place {
-  placeId: string;
-  displayName: string;
-  formattedAddress: string;
-  rating: number | null;
-  googleMapsUri: string;
-  lat: number;
-  lng: number;
-}
+import type { Trip, TripIdea, Place } from '@/types/trip';
 
 export default function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);

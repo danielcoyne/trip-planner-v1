@@ -2,47 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-
-interface Trip {
-  id: string;
-  name: string;
-  destination: string;
-  startDate: string;
-  endDate: string;
-  currentRound: number;
-  requirements: string | null;
-}
-
-interface TripIdea {
-  id: string;
-  placeId: string;
-  category: string;
-  state: string;
-  day: number | null;
-  endDay: number | null;
-  mealSlot: string | null;
-  agentNotes: string | null;
-  time: string | null;
-  externalUrl: string | null;
-  photos: Array<{ id: string; url: string; sortOrder: number }>;
-  reactions: IdeaReaction[];
-}
-
-interface IdeaReaction {
-  id: string;
-  reaction: string;
-  clientNotes: string | null;
-}
-
-interface PlaceCache {
-  placeId: string;
-  displayName: string;
-  formattedAddress: string;
-  rating: number | null;
-  googleMapsUri: string;
-  lat: number;
-  lng: number;
-}
+import type { Trip, TripIdea, Place } from '@/types/trip';
 
 export default function ReviewPage() {
   const params = useParams();
@@ -50,7 +10,7 @@ export default function ReviewPage() {
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [ideas, setIdeas] = useState<TripIdea[]>([]);
-  const [placesCache, setPlacesCache] = useState<Record<string, PlaceCache>>({});
+  const [placesCache, setPlacesCache] = useState<Record<string, Place>>({});
   const [reactions, setReactions] = useState<Record<string, { reaction: string; notes: string }>>(
     {}
   );
@@ -93,7 +53,7 @@ export default function ReviewPage() {
 
       // Fetch place details for each unique placeId
       const placeIds = [...new Set(tripIdeas.map((idea: TripIdea) => idea.placeId))];
-      const places: Record<string, PlaceCache> = {};
+      const places: Record<string, Place> = {};
 
       for (const placeId of placeIds) {
         if (typeof placeId !== 'string') continue;

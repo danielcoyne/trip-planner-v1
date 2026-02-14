@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 // Force Node.js runtime for file upload support
 export const runtime = 'nodejs';

@@ -1,17 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-
-interface Place {
-  placeId: string;
-  displayName: string;
-  formattedAddress: string;
-  types: string[];
-  rating?: number;
-}
+import type { PlaceSearchResult } from '@/types/trip';
 
 interface PlaceSearchProps {
-  onSelectPlace: (place: Place) => void;
+  onSelectPlace: (place: PlaceSearchResult) => void;
   placeholder?: string;
 }
 
@@ -20,7 +13,7 @@ export default function PlaceSearch({
   placeholder = 'Search for a place...',
 }: PlaceSearchProps) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Place[]>([]);
+  const [results, setResults] = useState<PlaceSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -64,7 +57,7 @@ export default function PlaceSearch({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelect = (place: Place) => {
+  const handleSelect = (place: PlaceSearchResult) => {
     onSelectPlace(place);
     setQuery('');
     setResults([]);

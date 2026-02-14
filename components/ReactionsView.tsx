@@ -1,35 +1,10 @@
 'use client';
 
-interface TripIdea {
-  id: string;
-  placeId: string;
-  category: string;
-  state: string;
-  day: number | null;
-  endDay: number | null;
-  mealSlot: string | null;
-  agentNotes: string | null;
-  reactions: IdeaReaction[];
-}
-
-interface IdeaReaction {
-  id: string;
-  reaction: string;
-  clientNotes: string | null;
-  createdAt: string;
-}
-
-interface PlaceCache {
-  placeId: string;
-  displayName: string;
-  formattedAddress: string;
-  rating: number | null;
-  googleMapsUri: string;
-}
+import type { TripIdea, Place } from '@/types/trip';
 
 interface ReactionsViewProps {
   ideas: TripIdea[];
-  placesCache: Record<string, PlaceCache>;
+  placesCache: Record<string, Place>;
 }
 
 export default function ReactionsView({ ideas, placesCache }: ReactionsViewProps) {

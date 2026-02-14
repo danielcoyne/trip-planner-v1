@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { fromYMD, toYMD } from '@/lib/dateOnly';
 
 export async function POST(request: NextRequest) {

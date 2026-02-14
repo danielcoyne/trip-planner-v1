@@ -9,67 +9,7 @@ import {
   type DisplaySegment,
 } from '@/lib/tripSegments';
 import { coerceDateOnly } from '@/lib/dateOnly';
-
-interface TripSegment {
-  id: string;
-  startDate: string;
-  endDate: string;
-  placeName: string;
-  lat: number | null;
-  lng: number | null;
-  timezone: string | null;
-  notes: string | null;
-}
-
-interface Trip {
-  id: string;
-  name: string;
-  destination: string | null;
-  startDate: string;
-  endDate: string;
-  requirements: string;
-  coverImageUrl: string | null;
-  coverImageUpdatedAt: string | null;
-  segments?: TripSegment[];
-}
-
-interface TripIdea {
-  id: string;
-  placeId: string;
-  category: string;
-  state: string;
-  status: string;
-  day: number | null;
-  endDay: number | null;
-  mealSlot: string | null;
-  agentNotes: string | null;
-  time: string | null;
-  externalUrl: string | null;
-  photos: Array<{ id: string; url: string; sortOrder: number }>;
-  createdAt?: string;
-  reactions: Array<{
-    id: string;
-    reaction: string;
-    clientNotes: string | null;
-    createdAt: string;
-  }>;
-}
-
-interface Place {
-  placeId: string;
-  displayName: string;
-  formattedAddress: string;
-  rating: number | null;
-  googleMapsUri: string;
-  lat: number;
-  lng: number;
-}
-
-interface HotelSummary {
-  hotel: TripIdea;
-  place: Place;
-  dayRange: string;
-}
+import type { Trip, TripIdea, TripSegment, Place, HotelSummary } from '@/types/trip';
 
 export default function ItineraryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
