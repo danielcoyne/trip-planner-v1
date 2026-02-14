@@ -20,23 +20,23 @@ export async function POST(request: NextRequest) {
     });
 
     // Serialize dates as YYYY-MM-DD strings
-    return NextResponse.json({
-      trip: {
-        ...trip,
-        startDate: toYMD(trip.startDate),
-        endDate: toYMD(trip.endDate),
+    return NextResponse.json(
+      {
+        trip: {
+          ...trip,
+          startDate: toYMD(trip.startDate),
+          endDate: toYMD(trip.endDate),
+        },
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store',
+        },
       }
-    }, {
-      headers: {
-        'Cache-Control': 'no-store',
-      }
-    });
+    );
   } catch (error) {
     console.error('Error creating trip:', error);
-    return NextResponse.json(
-      { error: 'Failed to create trip' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to create trip' }, { status: 500 });
   }
 }
 
@@ -57,10 +57,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (!trip) {
-        return NextResponse.json(
-          { error: 'Trip not found' },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
       }
 
       // Serialize all dates as YYYY-MM-DD strings
@@ -69,12 +66,12 @@ export async function GET(request: NextRequest) {
           ...trip,
           startDate: toYMD(trip.startDate),
           endDate: toYMD(trip.endDate),
-          segments: trip.segments?.map(seg => ({
+          segments: trip.segments?.map((seg) => ({
             ...seg,
             startDate: toYMD(seg.startDate),
             endDate: toYMD(seg.endDate),
           })),
-        }
+        },
       });
     }
 
@@ -87,17 +84,14 @@ export async function GET(request: NextRequest) {
 
     // Serialize all dates as YYYY-MM-DD strings
     return NextResponse.json({
-      trips: trips.map(trip => ({
+      trips: trips.map((trip) => ({
         ...trip,
         startDate: toYMD(trip.startDate),
         endDate: toYMD(trip.endDate),
-      }))
+      })),
     });
   } catch (error) {
     console.error('Error fetching trips:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch trips' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch trips' }, { status: 500 });
   }
 }

@@ -24,10 +24,7 @@ export async function POST(
     });
 
     if (!trip) {
-      return NextResponse.json(
-        { error: 'Trip not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
     // Parse multipart form data
@@ -35,10 +32,7 @@ export async function POST(
     const file = formData.get('file') as File | null;
 
     if (!file) {
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
     // Validate file type
@@ -87,9 +81,6 @@ export async function POST(
     return NextResponse.json({ url: blob.url });
   } catch (error) {
     console.error('Error uploading cover image:', error);
-    return NextResponse.json(
-      { error: 'Failed to upload cover image' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to upload cover image' }, { status: 500 });
   }
 }

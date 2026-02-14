@@ -1,38 +1,38 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from 'react';
 
 type Trip = {
-  id: string
-  name: string
-  destination: string | null
-  startDate: Date
-  endDate: Date
-}
+  id: string;
+  name: string;
+  destination: string | null;
+  startDate: Date;
+  endDate: Date;
+};
 
 type DeleteTripDialogProps = {
-  trip: Trip
-  onConfirm: () => void
-  onCancel: () => void
-  isDeleting: boolean
-}
+  trip: Trip;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDeleting: boolean;
+};
 
 export default function DeleteTripDialog({
   trip,
   onConfirm,
   onCancel,
-  isDeleting
+  isDeleting,
 }: DeleteTripDialogProps) {
-  const [inputValue, setInputValue] = useState("")
-  const isValid = inputValue === trip.name
+  const [inputValue, setInputValue] = useState('');
+  const isValid = inputValue === trip.name;
 
   // Prevent body scroll when dialog is open
   useEffect(() => {
-    document.body.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = 'unset'
-    }
-  }, [])
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
 
   return (
     <div
@@ -43,17 +43,13 @@ export default function DeleteTripDialog({
         className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-          Delete Trip
-        </h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Delete Trip</h2>
 
         <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
           <p className="text-sm text-red-800 dark:text-red-200 font-medium mb-2">
             ⚠️ This action cannot be undone.
           </p>
-          <p className="text-sm text-red-700 dark:text-red-300">
-            This will permanently delete:
-          </p>
+          <p className="text-sm text-red-700 dark:text-red-300">This will permanently delete:</p>
           <ul className="text-sm text-red-700 dark:text-red-300 list-disc list-inside mt-1">
             <li>The trip and all its details</li>
             <li>All trip ideas and suggestions</li>
@@ -63,9 +59,7 @@ export default function DeleteTripDialog({
         </div>
 
         <div className="mb-4">
-          <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-            Trip to delete:
-          </p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">Trip to delete:</p>
           <p className="font-semibold text-lg text-gray-900 dark:text-white mb-4 p-2 bg-gray-100 dark:bg-gray-700 rounded">
             {trip.name}
           </p>
@@ -99,10 +93,10 @@ export default function DeleteTripDialog({
             disabled={!isValid || isDeleting}
             className="flex-1 bg-red-600 text-white rounded py-2 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
-            {isDeleting ? "Deleting..." : "Delete Trip"}
+            {isDeleting ? 'Deleting...' : 'Delete Trip'}
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }

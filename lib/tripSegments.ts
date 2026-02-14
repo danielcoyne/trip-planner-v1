@@ -1,4 +1,12 @@
-import { addDays, differenceInCalendarDays, isAfter, isBefore, isEqual, startOfDay, subDays } from "date-fns";
+import {
+  addDays,
+  differenceInCalendarDays,
+  isAfter,
+  isBefore,
+  isEqual,
+  startOfDay,
+  subDays,
+} from 'date-fns';
 
 export type TripSegment = {
   id: string;
@@ -41,14 +49,10 @@ export function isDayInRange(day: Date, start: Date, end: Date) {
 
 export function findSegmentForDay(segments: TripSegment[], day: Date) {
   const d = normalizeDay(day);
-  return segments.find(seg => isDayInRange(d, seg.startDate, seg.endDate)) ?? null;
+  return segments.find((seg) => isDayInRange(d, seg.startDate, seg.endDate)) ?? null;
 }
 
-export function buildSegmentSummary(
-  segments: TripSegment[],
-  tripStart: Date,
-  tripEnd: Date
-) {
+export function buildSegmentSummary(segments: TripSegment[], tripStart: Date, tripEnd: Date) {
   // Returns list of { placeName, dayStart, dayEnd } for display like "Rome (Days 1–4)"
   // Clamps segment dates within trip range in case of imperfect data.
   const tripS = normalizeDay(tripStart);
@@ -57,7 +61,7 @@ export function buildSegmentSummary(
   return segments
     .slice()
     .sort((a, b) => +normalizeDay(a.startDate) - +normalizeDay(b.startDate))
-    .map(seg => {
+    .map((seg) => {
       const s = normalizeDay(seg.startDate);
       const e = normalizeDay(seg.endDate);
 
@@ -74,7 +78,7 @@ export function buildSegmentSummary(
         dayEnd,
       };
     })
-    .filter(x => x.dayEnd >= x.dayStart);
+    .filter((x) => x.dayEnd >= x.dayStart);
 }
 
 export function validateNoOverlap(segments: TripSegment[]) {
@@ -92,7 +96,7 @@ export function validateNoOverlap(segments: TripSegment[]) {
       // NOTE: Adjacent segments sharing a day is an overlap because end is inclusive.
       // If you want to allow "endDate = Jan 4" and next "startDate = Jan 5", that's fine.
       // This condition allows that already (Jan 5 is after Jan 4).
-      throw new Error("Trip segments overlap or touch on the same day. Adjust start/end dates.");
+      throw new Error('Trip segments overlap or touch on the same day. Adjust start/end dates.');
     }
   }
 }
@@ -115,14 +119,16 @@ export function buildDisplaySegments(
 
   // If no real segments, return single TBD covering whole trip
   if (realSegments.length === 0) {
-    return [{
-      kind: 'tbd',
-      id: 'tbd-full',
-      startDate: tripS,
-      endDate: tripE,
-      placeName: 'TBD',
-      notes: null,
-    }];
+    return [
+      {
+        kind: 'tbd',
+        id: 'tbd-full',
+        startDate: tripS,
+        endDate: tripE,
+        placeName: 'TBD',
+        notes: null,
+      },
+    ];
   }
 
   // Sort real segments by startDate
@@ -182,5 +188,5 @@ export function buildDisplaySegments(
 // Helper to find display segment for a day (including TBD gaps)
 export function findDisplaySegmentForDay(displaySegments: DisplaySegment[], day: Date) {
   const d = normalizeDay(day);
-  return displaySegments.find(seg => isDayInRange(d, seg.startDate, seg.endDate)) ?? null;
+  return displaySegments.find((seg) => isDayInRange(d, seg.startDate, seg.endDate)) ?? null;
 }

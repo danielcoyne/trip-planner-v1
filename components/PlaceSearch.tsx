@@ -15,7 +15,10 @@ interface PlaceSearchProps {
   placeholder?: string;
 }
 
-export default function PlaceSearch({ onSelectPlace, placeholder = 'Search for a place...' }: PlaceSearchProps) {
+export default function PlaceSearch({
+  onSelectPlace,
+  placeholder = 'Search for a place...',
+}: PlaceSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Place[]>([]);
   const [loading, setLoading] = useState(false);
@@ -34,7 +37,7 @@ export default function PlaceSearch({ onSelectPlace, placeholder = 'Search for a
       try {
         const response = await fetch(`/api/places/search?query=${encodeURIComponent(query)}`);
         const data = await response.json();
-        
+
         if (data.places) {
           setResults(data.places);
           setShowResults(true);
@@ -96,9 +99,7 @@ export default function PlaceSearch({ onSelectPlace, placeholder = 'Search for a
               <div className="font-medium text-gray-900">{place.displayName}</div>
               <div className="text-sm text-gray-600">{place.formattedAddress}</div>
               {place.rating && (
-                <div className="text-sm text-gray-500 mt-1">
-                  ⭐ {place.rating.toFixed(1)}
-                </div>
+                <div className="text-sm text-gray-500 mt-1">⭐ {place.rating.toFixed(1)}</div>
               )}
             </button>
           ))}

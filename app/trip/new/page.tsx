@@ -1,57 +1,55 @@
-"use client"
+'use client';
 
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import DateRangePicker from "@/components/DateRangePicker"
-import { toYMD } from "@/lib/dateOnly"
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import DateRangePicker from '@/components/DateRangePicker';
+import { toYMD } from '@/lib/dateOnly';
 
 export default function NewTripPage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [startDate, setStartDate] = useState<Date | undefined>()
-  const [endDate, setEndDate] = useState<Date | undefined>()
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     if (!startDate || !endDate) {
-      alert("Please select both start and end dates")
-      setLoading(false)
-      return
+      alert('Please select both start and end dates');
+      setLoading(false);
+      return;
     }
 
-    const formData = new FormData(e.currentTarget)
+    const formData = new FormData(e.currentTarget);
 
-    const response = await fetch("/api/trips", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const response = await fetch('/api/trips', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: formData.get("name"),
+        name: formData.get('name'),
         startDate: toYMD(startDate),
         endDate: toYMD(endDate),
-        requirements: formData.get("requirements"),
+        requirements: formData.get('requirements'),
       }),
-    })
+    });
 
     if (response.ok) {
-      const data = await response.json()
-      router.push(`/trip/${data.trip.id}`)
+      const data = await response.json();
+      router.push(`/trip/${data.trip.id}`);
     } else {
-      alert("Error creating trip")
-      setLoading(false)
+      alert('Error creating trip');
+      setLoading(false);
     }
   }
 
   return (
     <div className="max-w-2xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">Create New Trip</h1>
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">
-            Trip Name
-          </label>
+          <label className="block text-sm font-medium mb-1">Trip Name</label>
           <input
             name="name"
             required
@@ -68,9 +66,7 @@ export default function NewTripPage() {
         />
 
         <div>
-          <label className="block text-sm font-medium mb-1">
-            Client Requirements
-          </label>
+          <label className="block text-sm font-medium mb-1">Client Requirements</label>
           <textarea
             name="requirements"
             rows={8}
@@ -85,7 +81,7 @@ export default function NewTripPage() {
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={() => router.push("/")}
+            onClick={() => router.push('/')}
             className="px-4 py-2 border rounded hover:bg-gray-50"
           >
             Cancel
@@ -95,10 +91,10 @@ export default function NewTripPage() {
             disabled={loading}
             className="flex-1 bg-blue-600 text-white rounded py-2 hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? "Creating..." : "Create Trip"}
+            {loading ? 'Creating...' : 'Create Trip'}
           </button>
         </div>
       </form>
     </div>
-  )
+  );
 }

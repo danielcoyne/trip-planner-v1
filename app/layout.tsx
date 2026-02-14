@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { SessionProvider } from "@/components/SessionProvider";
-import { UserMenu } from "@/components/UserMenu";
+import type { Metadata } from 'next';
+import './globals.css';
+import { SessionProvider } from '@/components/SessionProvider';
+import { UserMenu } from '@/components/UserMenu';
 
 export const metadata: Metadata = {
   title: "Trip Planner - Audrey's Dashboard",
-  description: "Collaborative trip planning for travel agents",
+  description: 'Collaborative trip planning for travel agents',
 };
 
 export default function RootLayout({
@@ -23,9 +23,7 @@ export default function RootLayout({
               <UserMenu />
             </div>
           </nav>
-          <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            {children}
-          </main>
+          <main className="min-h-screen bg-gray-50 dark:bg-gray-900">{children}</main>
         </SessionProvider>
       </body>
     </html>

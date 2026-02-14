@@ -1,14 +1,14 @@
-import { prisma } from "@/lib/prisma"
-import Link from "next/link"
-import TripsList from "@/components/TripsList"
+import { prisma } from '@/lib/prisma';
+import Link from 'next/link';
+import TripsList from '@/components/TripsList';
 
 // Force dynamic rendering to ensure trips list is always fresh
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
   const trips = await prisma.trip.findMany({
-    orderBy: { createdAt: 'desc' }
-  })
+    orderBy: { createdAt: 'desc' },
+  });
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -24,5 +24,5 @@ export default async function HomePage() {
 
       <TripsList initialTrips={trips} />
     </div>
-  )
+  );
 }

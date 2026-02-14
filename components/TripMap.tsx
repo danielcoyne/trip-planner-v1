@@ -69,7 +69,7 @@ export default function TripMap({ ideas, placesCache }: TripMapProps) {
     if (!map || ideas.length === 0) return;
 
     // Clear existing markers
-    markers.forEach(marker => marker.setMap(null));
+    markers.forEach((marker) => marker.setMap(null));
 
     const newMarkers: google.maps.Marker[] = [];
     const bounds = new google.maps.LatLngBounds();
@@ -79,10 +79,10 @@ export default function TripMap({ ideas, placesCache }: TripMapProps) {
       if (!place) return;
 
       const position = { lat: place.lat, lng: place.lng };
-      
+
       // Get marker color based on state
       const markerColor = getMarkerColor(idea.state);
-      
+
       const marker = new google.maps.Marker({
         position,
         map,
@@ -95,12 +95,14 @@ export default function TripMap({ ideas, placesCache }: TripMapProps) {
           strokeColor: '#ffffff',
           strokeWeight: 2,
         },
-        label: idea.day ? {
-          text: idea.day.toString(),
-          color: '#ffffff',
-          fontSize: '12px',
-          fontWeight: 'bold',
-        } : undefined,
+        label: idea.day
+          ? {
+              text: idea.day.toString(),
+              color: '#ffffff',
+              fontSize: '12px',
+              fontWeight: 'bold',
+            }
+          : undefined,
       });
 
       // Create info window
@@ -126,10 +128,14 @@ export default function TripMap({ ideas, placesCache }: TripMapProps) {
 
   const getMarkerColor = (state: string): string => {
     switch (state) {
-      case 'ANCHOR': return '#ef4444'; // red
-      case 'FLEXIBLE': return '#3b82f6'; // blue
-      case 'SPONTANEOUS': return '#10b981'; // green
-      default: return '#6b7280'; // gray
+      case 'ANCHOR':
+        return '#ef4444'; // red
+      case 'FLEXIBLE':
+        return '#3b82f6'; // blue
+      case 'SPONTANEOUS':
+        return '#10b981'; // green
+      default:
+        return '#6b7280'; // gray
     }
   };
 
@@ -137,7 +143,7 @@ export default function TripMap({ ideas, placesCache }: TripMapProps) {
     const stateEmoji = idea.state === 'ANCHOR' ? '⚓' : idea.state === 'FLEXIBLE' ? '↕️' : '⏱️';
     const dayText = idea.day ? `Day ${idea.day}` : '';
     const ratingText = place.rating ? `⭐ ${place.rating.toFixed(1)}` : '';
-    
+
     return `
       <div style="padding: 8px; min-width: 200px;">
         <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">
@@ -156,11 +162,15 @@ export default function TripMap({ ideas, placesCache }: TripMapProps) {
           ${dayText ? `<span style="background: #ddd6fe; color: #5b21b6; padding: 2px 8px; border-radius: 12px; font-size: 11px;">${dayText}</span>` : ''}
           ${ratingText ? `<span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-size: 11px;">${ratingText}</span>` : ''}
         </div>
-        ${idea.agentNotes ? `
+        ${
+          idea.agentNotes
+            ? `
           <div style="margin: 8px 0; padding: 8px; background: #eff6ff; border-left: 3px solid #3b82f6; font-size: 12px; color: #1e3a8a;">
             <strong>Notes:</strong> ${idea.agentNotes}
           </div>
-        ` : ''}
+        `
+            : ''
+        }
         <a href="${place.googleMapsUri}" target="_blank" rel="noopener noreferrer" 
            style="display: inline-block; margin-top: 8px; color: #2563eb; text-decoration: none; font-size: 13px;">
           View on Google Maps →

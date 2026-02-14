@@ -30,8 +30,8 @@ export default function SuggestionsList({ suggestions, onRefresh }: SuggestionsL
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'RESOLVED',
-          agentNotes: agentNotes[suggestionId] || null
-        })
+          agentNotes: agentNotes[suggestionId] || null,
+        }),
       });
 
       if (response.ok) {
@@ -50,21 +50,25 @@ export default function SuggestionsList({ suggestions, onRefresh }: SuggestionsL
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      case 'RESOLVED': return 'bg-green-100 text-green-800';
-      case 'DISMISSED': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'RESOLVED':
+        return 'bg-green-100 text-green-800';
+      case 'DISMISSED':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const pendingSuggestions = suggestions.filter(s => s.status === 'PENDING');
-  const resolvedSuggestions = suggestions.filter(s => s.status === 'RESOLVED');
+  const pendingSuggestions = suggestions.filter((s) => s.status === 'PENDING');
+  const resolvedSuggestions = suggestions.filter((s) => s.status === 'RESOLVED');
 
   if (suggestions.length === 0) {
     return (
@@ -91,16 +95,16 @@ export default function SuggestionsList({ suggestions, onRefresh }: SuggestionsL
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getStatusColor(suggestion.status)}`}>
+                      <span
+                        className={`inline-block px-2 py-1 rounded text-xs font-medium ${getStatusColor(suggestion.status)}`}
+                      >
                         {suggestion.status}
                       </span>
                       <span className="text-xs text-gray-500">
                         Round {suggestion.round} • {formatDate(suggestion.createdAt)}
                       </span>
                     </div>
-                    <p className="text-gray-900 font-medium">
-                      "{suggestion.suggestionText}"
-                    </p>
+                    <p className="text-gray-900 font-medium">"{suggestion.suggestionText}"</p>
                   </div>
                 </div>
 
@@ -112,7 +116,9 @@ export default function SuggestionsList({ suggestions, onRefresh }: SuggestionsL
                     </label>
                     <textarea
                       value={agentNotes[suggestion.id] || ''}
-                      onChange={(e) => setAgentNotes({ ...agentNotes, [suggestion.id]: e.target.value })}
+                      onChange={(e) =>
+                        setAgentNotes({ ...agentNotes, [suggestion.id]: e.target.value })
+                      }
                       rows={2}
                       placeholder="e.g., Added Rimessa Roscioli as Day 3 lunch option"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -158,18 +164,24 @@ export default function SuggestionsList({ suggestions, onRefresh }: SuggestionsL
               >
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <svg
+                      className="w-4 h-4 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="text-gray-900 font-medium mb-1">
-                      "{suggestion.suggestionText}"
-                    </p>
+                    <p className="text-gray-900 font-medium mb-1">"{suggestion.suggestionText}"</p>
                     {suggestion.agentNotes && (
-                      <p className="text-sm text-gray-600 italic">
-                        Note: {suggestion.agentNotes}
-                      </p>
+                      <p className="text-sm text-gray-600 italic">Note: {suggestion.agentNotes}</p>
                     )}
                     <p className="text-xs text-gray-500 mt-2">
                       Round {suggestion.round} • {formatDate(suggestion.createdAt)}

@@ -8,17 +8,14 @@ export async function GET(
   const { placeId } = await params;
 
   if (!placeId) {
-    return NextResponse.json(
-      { error: 'Place ID is required' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'Place ID is required' }, { status: 400 });
   }
 
   try {
     // Check cache first (placeId might be with or without "places/" prefix)
     const cleanPlaceId = placeId.replace('places/', '');
     const cached = await prisma.googlePlaceCache.findUnique({
-      where: { placeId: cleanPlaceId }
+      where: { placeId: cleanPlaceId },
     });
 
     if (cached && cached.expiresAt > new Date()) {
@@ -29,20 +26,17 @@ export async function GET(
     const apiKey = process.env.GOOGLE_PLACES_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Google Places API key not configured' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Google Places API key not configured' }, { status: 500 });
     }
 
     // The new API expects the full place ID without "places/" prefix in the URL path
     const fullPlaceId = placeId.startsWith('places/') ? placeId : `places/${placeId}`;
-    
+
     const response = await fetch(`https://places.googleapis.com/v1/${fullPlaceId}`, {
       headers: {
         'X-Goog-Api-Key': apiKey,
-        'X-Goog-FieldMask': 'id,displayName,formattedAddress,types,location,rating,googleMapsUri'
-      }
+        'X-Goog-FieldMask': 'id,displayName,formattedAddress,types,location,rating,googleMapsUri',
+      },
     });
 
     if (!response.ok) {
@@ -70,7 +64,7 @@ export async function GET(
         googleMapsUri: data.googleMapsUri || '',
         types: data.types || [],
         rating: data.rating,
-        expiresAt
+        expiresAt,
       },
       create: {
         placeId: cleanPlaceId,
@@ -81,16 +75,13 @@ export async function GET(
         googleMapsUri: data.googleMapsUri || '',
         types: data.types || [],
         rating: data.rating,
-        expiresAt
-      }
+        expiresAt,
+      },
     });
 
     return NextResponse.json({ place });
   } catch (error) {
     console.error('Error fetching place details:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

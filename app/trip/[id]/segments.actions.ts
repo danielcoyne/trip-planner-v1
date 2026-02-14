@@ -51,7 +51,7 @@ async function validateSegment(
   }
 
   // Check for overlaps with existing segments
-  const otherSegments = trip.segments.filter(s => s.id !== excludeSegmentId);
+  const otherSegments = trip.segments.filter((s) => s.id !== excludeSegmentId);
 
   for (const existing of otherSegments) {
     const existStart = startOfLocalDay(existing.startDate);
@@ -71,7 +71,7 @@ export async function createSegment(
   tripId: string,
   placeName: string,
   startDate: string, // YYYY-MM-DD
-  endDate: string,   // YYYY-MM-DD
+  endDate: string, // YYYY-MM-DD
   notes?: string
 ): Promise<SegmentResult> {
   try {
@@ -111,7 +111,7 @@ export async function updateSegment(
   segmentId: string,
   placeName: string,
   startDate: string, // YYYY-MM-DD
-  endDate: string,   // YYYY-MM-DD
+  endDate: string, // YYYY-MM-DD
   notes?: string
 ): Promise<SegmentResult> {
   try {

@@ -33,7 +33,7 @@ export default function SegmentsEditor({
   tripStartDate,
   tripEndDate,
   realSegments,
-  onRefresh
+  onRefresh,
 }: SegmentsEditorProps) {
   const [showModal, setShowModal] = useState(false);
   const [editingSegment, setEditingSegment] = useState<TripSegment | null>(null);
@@ -50,7 +50,7 @@ export default function SegmentsEditor({
   const displaySegments: DisplaySegment[] = buildDisplaySegments(
     coerceDateOnly(tripStartDate),
     coerceDateOnly(tripEndDate),
-    realSegments.map(seg => ({
+    realSegments.map((seg) => ({
       ...seg,
       startDate: coerceDateOnly(seg.startDate),
       endDate: coerceDateOnly(seg.endDate),
@@ -104,7 +104,6 @@ export default function SegmentsEditor({
     });
     setError('');
   };
-
 
   const formatDateForDisplay = (date: Date): string => {
     return date.toLocaleDateString('en-US', {
@@ -171,7 +170,7 @@ export default function SegmentsEditor({
 
   // Update endDate min when startDate changes
   const handleStartDateChange = (newStartDate: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       startDate: newStartDate,
       // If endDate is before new startDate, update it
@@ -181,7 +180,7 @@ export default function SegmentsEditor({
 
   // Update startDate max when endDate changes
   const handleEndDateChange = (newEndDate: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       endDate: newEndDate,
       // If startDate is after new endDate, update it
@@ -221,15 +220,18 @@ export default function SegmentsEditor({
               }`}
             >
               <div className="flex-1">
-                <div className={`font-medium ${
-                  segment.kind === 'tbd'
-                    ? 'text-gray-500 dark:text-gray-400 italic'
-                    : 'text-gray-900 dark:text-white'
-                }`}>
+                <div
+                  className={`font-medium ${
+                    segment.kind === 'tbd'
+                      ? 'text-gray-500 dark:text-gray-400 italic'
+                      : 'text-gray-900 dark:text-white'
+                  }`}
+                >
                   {segment.placeName}
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  {formatDateForDisplay(segment.startDate)} – {formatDateForDisplay(segment.endDate)}
+                  {formatDateForDisplay(segment.startDate)} –{' '}
+                  {formatDateForDisplay(segment.endDate)}
                 </div>
                 {segment.notes && segment.kind === 'real' && (
                   <div className="text-sm text-gray-500 dark:text-gray-500 mt-1">
@@ -241,7 +243,7 @@ export default function SegmentsEditor({
                 {segment.kind === 'real' ? (
                   <>
                     <button
-                      onClick={() => openEditModal(realSegments.find(s => s.id === segment.id)!)}
+                      onClick={() => openEditModal(realSegments.find((s) => s.id === segment.id)!)}
                       className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
                     >
                       Edit

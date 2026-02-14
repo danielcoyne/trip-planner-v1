@@ -35,14 +35,14 @@ interface ReactionsViewProps {
 export default function ReactionsView({ ideas, placesCache }: ReactionsViewProps) {
   // Group ideas by reaction type
   const groupedIdeas = {
-    LOVE: ideas.filter(idea => idea.reactions.some(r => r.reaction === 'LOVE')),
-    MAYBE: ideas.filter(idea => idea.reactions.some(r => r.reaction === 'MAYBE')),
-    PASS: ideas.filter(idea => idea.reactions.some(r => r.reaction === 'PASS')),
-    NO_REACTION: ideas.filter(idea => idea.reactions.length === 0)
+    LOVE: ideas.filter((idea) => idea.reactions.some((r) => r.reaction === 'LOVE')),
+    MAYBE: ideas.filter((idea) => idea.reactions.some((r) => r.reaction === 'MAYBE')),
+    PASS: ideas.filter((idea) => idea.reactions.some((r) => r.reaction === 'PASS')),
+    NO_REACTION: ideas.filter((idea) => idea.reactions.length === 0),
   };
 
   const getReactionForIdea = (idea: TripIdea) => {
-    return idea.reactions.find(r => ['LOVE', 'MAYBE', 'PASS'].includes(r.reaction));
+    return idea.reactions.find((r) => ['LOVE', 'MAYBE', 'PASS'].includes(r.reaction));
   };
 
   const renderIdeaCard = (idea: TripIdea, reactionType: string) => {
@@ -52,25 +52,28 @@ export default function ReactionsView({ ideas, placesCache }: ReactionsViewProps
     const reactionColors = {
       LOVE: 'border-red-200 bg-red-50',
       MAYBE: 'border-yellow-200 bg-yellow-50',
-      PASS: 'border-gray-200 bg-gray-50'
+      PASS: 'border-gray-200 bg-gray-50',
     };
 
     const reactionEmojis = {
       LOVE: '❤️',
       MAYBE: '🤔',
-      PASS: '❌'
+      PASS: '❌',
     };
 
     return (
-      <div key={idea.id} className={`border-2 rounded-lg p-4 ${reactionColors[reactionType as keyof typeof reactionColors]}`}>
+      <div
+        key={idea.id}
+        className={`border-2 rounded-lg p-4 ${reactionColors[reactionType as keyof typeof reactionColors]}`}
+      >
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
-            <h4 className="font-semibold text-gray-900">
-              {place?.displayName || 'Loading...'}
-            </h4>
+            <h4 className="font-semibold text-gray-900">{place?.displayName || 'Loading...'}</h4>
             <p className="text-sm text-gray-600">{place?.formattedAddress}</p>
           </div>
-          <span className="text-2xl ml-2">{reactionEmojis[reactionType as keyof typeof reactionEmojis]}</span>
+          <span className="text-2xl ml-2">
+            {reactionEmojis[reactionType as keyof typeof reactionEmojis]}
+          </span>
         </div>
 
         <div className="flex gap-2 flex-wrap mb-2">
@@ -117,12 +120,15 @@ export default function ReactionsView({ ideas, placesCache }: ReactionsViewProps
     );
   };
 
-  const totalReactions = groupedIdeas.LOVE.length + groupedIdeas.MAYBE.length + groupedIdeas.PASS.length;
+  const totalReactions =
+    groupedIdeas.LOVE.length + groupedIdeas.MAYBE.length + groupedIdeas.PASS.length;
 
   if (totalReactions === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-12 text-center">
-        <p className="text-gray-500">No client feedback yet. Share the review link to get feedback!</p>
+        <p className="text-gray-500">
+          No client feedback yet. Share the review link to get feedback!
+        </p>
       </div>
     );
   }
@@ -157,7 +163,7 @@ export default function ReactionsView({ ideas, placesCache }: ReactionsViewProps
             Love It ({groupedIdeas.LOVE.length})
           </h3>
           <div className="space-y-3">
-            {groupedIdeas.LOVE.map(idea => renderIdeaCard(idea, 'LOVE'))}
+            {groupedIdeas.LOVE.map((idea) => renderIdeaCard(idea, 'LOVE'))}
           </div>
         </div>
       )}
@@ -173,7 +179,7 @@ export default function ReactionsView({ ideas, placesCache }: ReactionsViewProps
             These ideas need more information or adjustments
           </p>
           <div className="space-y-3">
-            {groupedIdeas.MAYBE.map(idea => renderIdeaCard(idea, 'MAYBE'))}
+            {groupedIdeas.MAYBE.map((idea) => renderIdeaCard(idea, 'MAYBE'))}
           </div>
         </div>
       )}
@@ -189,7 +195,7 @@ export default function ReactionsView({ ideas, placesCache }: ReactionsViewProps
             Client not interested - consider alternatives
           </p>
           <div className="space-y-3">
-            {groupedIdeas.PASS.map(idea => renderIdeaCard(idea, 'PASS'))}
+            {groupedIdeas.PASS.map((idea) => renderIdeaCard(idea, 'PASS'))}
           </div>
         </div>
       )}
@@ -202,7 +208,7 @@ export default function ReactionsView({ ideas, placesCache }: ReactionsViewProps
             No Response Yet ({groupedIdeas.NO_REACTION.length})
           </h3>
           <div className="space-y-3">
-            {groupedIdeas.NO_REACTION.map(idea => {
+            {groupedIdeas.NO_REACTION.map((idea) => {
               const place = placesCache[idea.placeId];
               return (
                 <div key={idea.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">

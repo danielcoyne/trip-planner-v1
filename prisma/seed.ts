@@ -31,7 +31,8 @@ async function main() {
     const tripEnd = new Date(existingTrip.endDate);
 
     // Calculate midpoint for splitting into segments
-    const tripDays = Math.ceil((tripEnd.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const tripDays =
+      Math.ceil((tripEnd.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
     if (tripDays >= 4) {
       // Create 2 segments
@@ -91,7 +92,8 @@ async function main() {
         destination: 'Italy',
         startDate: fromYMD('2026-06-01'),
         endDate: fromYMD('2026-06-10'),
-        requirements: 'A wonderful trip exploring Rome and Lake Como with a mix of history, culture, and natural beauty.',
+        requirements:
+          'A wonderful trip exploring Rome and Lake Como with a mix of history, culture, and natural beauty.',
         status: 'DRAFT',
         currentRound: 1,
         segments: {

@@ -9,10 +9,7 @@ export async function GET(
     const { token } = await params;
 
     if (!token) {
-      return NextResponse.json(
-        { error: 'Review token is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Review token is required' }, { status: 400 });
     }
 
     // Fetch trip with ideas
@@ -20,30 +17,21 @@ export async function GET(
       where: { reviewToken: token },
       include: {
         ideas: {
-          orderBy: [
-            { day: 'asc' },
-            { createdAt: 'asc' }
-          ],
+          orderBy: [{ day: 'asc' }, { createdAt: 'asc' }],
           include: {
-            reactions: true
-          }
-        }
-      }
+            reactions: true,
+          },
+        },
+      },
     });
 
     if (!trip) {
-      return NextResponse.json(
-        { error: 'Trip not found or link expired' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Trip not found or link expired' }, { status: 404 });
     }
 
     return NextResponse.json({ trip });
   } catch (error) {
     console.error('Error fetching trip by token:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch trip' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch trip' }, { status: 500 });
   }
 }

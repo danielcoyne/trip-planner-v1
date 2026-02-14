@@ -1,17 +1,17 @@
-import { auth, signIn } from "@/lib/auth"
-import { redirect } from "next/navigation"
+import { auth, signIn } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>
+  searchParams: Promise<{ callbackUrl?: string }>;
 }) {
-  const session = await auth()
-  const { callbackUrl } = await searchParams
+  const session = await auth();
+  const { callbackUrl } = await searchParams;
 
   // If already signed in, redirect to home or callback URL
   if (session?.user) {
-    redirect(callbackUrl || "/")
+    redirect(callbackUrl || '/');
   }
 
   return (
@@ -24,8 +24,8 @@ export default async function SignInPage({
 
         <form
           action={async () => {
-            "use server"
-            await signIn("google", { redirectTo: callbackUrl || "/" })
+            'use server';
+            await signIn('google', { redirectTo: callbackUrl || '/' });
           }}
         >
           <button
@@ -55,5 +55,5 @@ export default async function SignInPage({
         </form>
       </div>
     </div>
-  )
+  );
 }

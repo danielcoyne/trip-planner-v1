@@ -4,14 +4,12 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { fromYMD, startOfLocalDay } from '@/lib/dateOnly';
 
-export type UpdateDatesResult =
-  | { success: true }
-  | { success: false; error: string };
+export type UpdateDatesResult = { success: true } | { success: false; error: string };
 
 export async function updateTripDates(
   tripId: string,
   startDateStr: string, // YYYY-MM-DD
-  endDateStr: string    // YYYY-MM-DD
+  endDateStr: string // YYYY-MM-DD
 ): Promise<UpdateDatesResult> {
   try {
     const newStart = startOfLocalDay(fromYMD(startDateStr));
@@ -62,9 +60,7 @@ export async function updateTripDates(
 
     // Check for overlaps after clamping
     if (segmentUpdates.length > 1) {
-      const sorted = segmentUpdates
-        .slice()
-        .sort((a, b) => +a.startDate - +b.startDate);
+      const sorted = segmentUpdates.slice().sort((a, b) => +a.startDate - +b.startDate);
 
       for (let i = 0; i < sorted.length - 1; i++) {
         const currEnd = sorted[i].endDate;
@@ -74,7 +70,8 @@ export async function updateTripDates(
         if (nextStart <= currEnd) {
           return {
             success: false,
-            error: 'Clamping would cause segment overlaps. Please manually adjust segments before changing trip dates.',
+            error:
+              'Clamping would cause segment overlaps. Please manually adjust segments before changing trip dates.',
           };
         }
       }
