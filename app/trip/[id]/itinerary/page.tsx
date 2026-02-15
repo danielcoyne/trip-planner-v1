@@ -9,7 +9,10 @@ import {
   type DisplaySegment,
 } from '@/lib/tripSegments';
 import { coerceDateOnly } from '@/lib/dateOnly';
-import type { Trip, TripIdea, TripSegment, Place, HotelSummary } from '@/types/trip';
+import { formatTime, formatDateRange } from '@/lib/formatters';
+import { getTripDays, getIdeasForDay, sortIdeasForItinerary } from '@/lib/tripUtils';
+import { CATEGORY_EMOJIS, STATE_EMOJIS, STATE_COLORS } from '@/lib/constants';
+import type { Trip, TripIdea, Place, HotelSummary } from '@/types/trip';
 
 export default function ItineraryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -78,32 +81,7 @@ export default function ItineraryPage({ params }: { params: Promise<{ id: string
     );
   }
 
-  // Calculate trip days
-  const getTripDays = () => {
-    const start = coerceDateOnly(trip.startDate);
-    const end = coerceDateOnly(trip.endDate);
-    const days = [];
-    let currentDate = new Date(start);
-    let dayNumber = 1;
-
-    while (currentDate <= end) {
-      days.push({
-        number: dayNumber,
-        date: new Date(currentDate),
-        formatted: currentDate.toLocaleDateString('en-US', {
-          weekday: 'long',
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric',
-        }),
-      });
-      currentDate.setDate(currentDate.getDate() + 1);
-      dayNumber++;
-    }
-    return days;
-  };
-
-  const tripDays = getTripDays();
+  const tripDays = getTripDays(trip.startDate, trip.endDate, 'long');
 
   // Segment logic - use REAL segments for conversion
   const realSegments: TripSegmentType[] = (trip.segments || []).map((seg) => ({
@@ -165,74 +143,12 @@ export default function ItineraryPage({ params }: { params: Promise<{ id: string
 
   const lodgingSummary = getLodgingSummary();
 
-  // Group ideas by day
-  const getIdeasForDay = (dayNumber: number) => {
-    return ideas.filter((idea) => {
-      if (!idea.day) return false;
-      // Single-day idea
-      if (!idea.endDay) return idea.day === dayNumber;
-      // Multi-day idea: show on all days in range
-      return idea.day <= dayNumber && dayNumber <= idea.endDay;
-    });
-  };
-
   // Get unassigned ideas
   const unassignedIdeas = ideas.filter((idea) => !idea.day);
 
-  // Sort ideas within a day
-  const sortIdeasForDay = (dayIdeas: TripIdea[]) => {
-    const mealOrder = { BREAKFAST: 1, LUNCH: 2, DINNER: 3, SNACK: 4 };
-
-    return dayIdeas.sort((a, b) => {
-      // Hotels first
-      if (a.category === 'HOTEL' && b.category !== 'HOTEL') return -1;
-      if (a.category !== 'HOTEL' && b.category === 'HOTEL') return 1;
-
-      // Restaurants next, ordered by meal slot
-      if (a.category === 'RESTAURANT' && b.category !== 'RESTAURANT') return -1;
-      if (a.category !== 'RESTAURANT' && b.category === 'RESTAURANT') return 1;
-
-      // Within restaurants, sort by meal slot
-      if (a.category === 'RESTAURANT' && b.category === 'RESTAURANT') {
-        const aMeal = a.mealSlot ? mealOrder[a.mealSlot as keyof typeof mealOrder] || 99 : 99;
-        const bMeal = b.mealSlot ? mealOrder[b.mealSlot as keyof typeof mealOrder] || 99 : 99;
-        if (aMeal !== bMeal) return aMeal - bMeal;
-      }
-
-      // Then by creation time
-      return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-    });
-  };
-
-  // State emoji and color mapping
-  const stateEmojis = {
-    ANCHOR: '🎯',
-    FLEXIBLE: '🔄',
-    SPONTANEOUS: '✨',
-  };
-
-  const stateColors = {
-    ANCHOR: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
-    FLEXIBLE: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-    SPONTANEOUS: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
-  };
-
-  const categoryEmojis: Record<string, string> = {
-    HOTEL: '🏨',
-    AIRBNB: '🏠',
-  };
-
-  // Format time "19:30" → "7:30 PM"
-  const formatTime = (timeStr: string): string => {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const displayHours = hours % 12 || 12;
-    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
-  };
-
   const renderIdeaCard = (
     idea: TripIdea,
-    isMultiDayView = false,
+    _isMultiDayView = false,
     currentDayNumber: number | null = null
   ) => {
     const place = placesCache[idea.placeId];
@@ -249,7 +165,7 @@ export default function ItineraryPage({ params }: { params: Promise<{ id: string
           className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
         >
           <div className="flex items-center gap-3 flex-wrap text-sm">
-            <span className="text-base">{categoryEmojis[idea.category] || '📍'}</span>
+            <span className="text-base">{CATEGORY_EMOJIS[idea.category] || '📍'}</span>
             <span className="font-medium text-gray-900 dark:text-white">{place.displayName}</span>
             <span className="text-gray-400 dark:text-gray-500 italic">(continued)</span>
             <span className="text-gray-400 dark:text-gray-500">•</span>
@@ -329,7 +245,7 @@ export default function ItineraryPage({ params }: { params: Promise<{ id: string
               <div className="flex justify-between items-start mb-2">
                 <div className="flex-1">
                   <h3 className="font-semibold text-xl text-gray-900 dark:text-white mb-1">
-                    {categoryEmojis[idea.category] || '📍'} {place.displayName}
+                    {CATEGORY_EMOJIS[idea.category] || '📍'} {place.displayName}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {place.formattedAddress}
@@ -429,7 +345,7 @@ export default function ItineraryPage({ params }: { params: Promise<{ id: string
                   {formatTime(idea.time)} —{' '}
                 </span>
               )}
-              {stateEmojis[idea.state as keyof typeof stateEmojis]} {place.displayName}
+              {STATE_EMOJIS[idea.state]} {place.displayName}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">{place.formattedAddress}</p>
           </div>
@@ -493,7 +409,7 @@ export default function ItineraryPage({ params }: { params: Promise<{ id: string
     return (
       <div
         key={idea.id}
-        className={`border-2 rounded-lg p-5 ${stateColors[idea.state as keyof typeof stateColors]}`}
+        className={`border-2 rounded-lg p-5 ${STATE_COLORS[idea.state]}`}
       >
         {idea.photos && idea.photos.length > 0 ? (
           <div className="flex gap-4">
@@ -509,26 +425,6 @@ export default function ItineraryPage({ params }: { params: Promise<{ id: string
         )}
       </div>
     );
-  };
-
-  // Format date range for cover
-  const formatDateRange = () => {
-    const start = new Date(trip.startDate);
-    const end = new Date(trip.endDate);
-
-    const startFormatted = start.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-
-    const endFormatted = end.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-
-    return `${startFormatted} – ${endFormatted}`;
   };
 
   return (
@@ -559,7 +455,7 @@ export default function ItineraryPage({ params }: { params: Promise<{ id: string
           <div className="text-center mb-12">
             <h1 className="text-5xl md:text-6xl font-bold mb-4 leading-tight">{trip.name}</h1>
             <p className="text-2xl md:text-3xl font-light mb-2">{headerLocationLine}</p>
-            <p className="text-lg md:text-xl text-white/90">{formatDateRange()}</p>
+            <p className="text-lg md:text-xl text-white/90">{formatDateRange(trip.startDate, trip.endDate)}</p>
 
             {/* Segment summary line - only for multiple display segments */}
             {hasMultipleDisplaySegments && segmentSummary.length > 0 && (
@@ -610,7 +506,7 @@ export default function ItineraryPage({ params }: { params: Promise<{ id: string
         {/* Day-by-Day Sections */}
         <div className="space-y-12">
           {tripDays.map((day) => {
-            const dayIdeas = sortIdeasForDay(getIdeasForDay(day.number));
+            const dayIdeas = sortIdeasForItinerary(getIdeasForDay(ideas, day.number));
             const daySegment = hasMultipleDisplaySegments
               ? findDisplaySegmentForDay(displaySegments, day.date)
               : null;

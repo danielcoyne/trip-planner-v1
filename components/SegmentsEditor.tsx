@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { createSegment, updateSegment, deleteSegment } from '@/app/trip/[id]/segments.actions';
 import { buildDisplaySegments, type DisplaySegment } from '@/lib/tripSegments';
 import { coerceDateOnly, toYMD } from '@/lib/dateOnly';
+import { formatDateShort } from '@/lib/formatters';
 import type { TripSegment } from '@/types/trip';
 
 interface SegmentsEditorProps {
@@ -96,14 +97,6 @@ export default function SegmentsEditor({
       notes: '',
     });
     setError('');
-  };
-
-  const formatDateForDisplay = (date: Date): string => {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
-    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -223,8 +216,8 @@ export default function SegmentsEditor({
                   {segment.placeName}
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  {formatDateForDisplay(segment.startDate)} –{' '}
-                  {formatDateForDisplay(segment.endDate)}
+                  {formatDateShort(segment.startDate)} –{' '}
+                  {formatDateShort(segment.endDate)}
                 </div>
                 {segment.notes && segment.kind === 'real' && (
                   <div className="text-sm text-gray-500 dark:text-gray-500 mt-1">

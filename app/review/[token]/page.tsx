@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { formatDate, formatTime } from '@/lib/formatters';
 import type { Trip, TripIdea, Place } from '@/types/trip';
 
 export default function ReviewPage() {
@@ -141,22 +142,6 @@ export default function ReviewPage() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  // Format time "19:30" → "7:30 PM"
-  const formatTime = (timeStr: string): string => {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const displayHours = hours % 12 || 12;
-    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
   if (loading) {

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 // DELETE /api/ideas/[id] - Delete an idea
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { fromYMD, toYMD } from '@/lib/dateOnly';
+import { dateToDayNumber, formatDateDisplay, formatDateRangeDisplay, formatDateForInput } from '@/lib/formatters';
 
 interface EditIdeaModalProps {
   idea: {
@@ -64,40 +65,6 @@ export default function EditIdeaModal({
   const [uploadProgress, setUploadProgress] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Helper: Convert date string (YYYY-MM-DD) to day number
-  const dateToDayNumber = (dateStr: string): number => {
-    const tripStart = fromYMD(tripStartDate);
-    const selected = fromYMD(dateStr);
-    const diffTime = selected.getTime() - tripStart.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays + 1;
-  };
-
-  // Helper: Format date for display
-  const formatDateDisplay = (dateStr: string): string => {
-    const date = fromYMD(dateStr);
-    return date.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  // Helper: Format date range for display
-  const formatDateRangeDisplay = (startStr: string, endStr: string): string => {
-    const start = fromYMD(startStr);
-    const end = fromYMD(endStr);
-    const startDay = dateToDayNumber(startStr);
-    const endDay = dateToDayNumber(endStr);
-
-    return `${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} (Days ${startDay}-${endDay})`;
-  };
-
-  // Helper: Format YYYY-MM-DD for date input min/max
-  const formatDateForInput = (dateStr: string): string => {
-    return dateStr.split('T')[0];
-  };
-
   const handleDateChange = (value: string) => {
     setFormData({ ...formData, selectedDate: value });
 
@@ -157,8 +124,8 @@ export default function EditIdeaModal({
     setSaving(true);
 
     // Convert dates to day numbers
-    const day = formData.selectedDate ? dateToDayNumber(formData.selectedDate) : null;
-    const endDay = formData.selectedEndDate ? dateToDayNumber(formData.selectedEndDate) : null;
+    const day = formData.selectedDate ? dateToDayNumber(formData.selectedDate, tripStartDate) : null;
+    const endDay = formData.selectedEndDate ? dateToDayNumber(formData.selectedEndDate, tripStartDate) : null;
 
     const updates = {
       category: formData.category,
@@ -264,7 +231,7 @@ export default function EditIdeaModal({
               {formData.selectedDate && (
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                   {formatDateDisplay(formData.selectedDate)} (Day{' '}
-                  {dateToDayNumber(formData.selectedDate)})
+                  {dateToDayNumber(formData.selectedDate, tripStartDate)})
                 </p>
               )}
             </div>
@@ -304,7 +271,7 @@ export default function EditIdeaModal({
                 />
                 {formData.selectedEndDate && (
                   <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    {formatDateRangeDisplay(formData.selectedDate, formData.selectedEndDate)}
+                    {formatDateRangeDisplay(formData.selectedDate, formData.selectedEndDate, tripStartDate)}
                   </p>
                 )}
                 {endDateError && (

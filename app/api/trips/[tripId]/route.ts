@@ -5,7 +5,7 @@ type RouteContext = {
   params: Promise<{ tripId: string }>;
 };
 
-export async function DELETE(request: NextRequest, context: RouteContext) {
+export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
     const { tripId } = await context.params;
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { formatDateTime } from '@/lib/formatters';
 
 interface ClientSuggestion {
   id: string;
@@ -18,7 +19,6 @@ interface SuggestionsListProps {
 }
 
 export default function SuggestionsList({ suggestions, onRefresh }: SuggestionsListProps) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [agentNotes, setAgentNotes] = useState<Record<string, string>>({});
   const [updatingSuggestion, setUpdatingSuggestion] = useState<string | null>(null);
 
@@ -43,15 +43,6 @@ export default function SuggestionsList({ suggestions, onRefresh }: SuggestionsL
     } finally {
       setUpdatingSuggestion(null);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
   };
 
   const getStatusColor = (status: string) => {
@@ -101,7 +92,7 @@ export default function SuggestionsList({ suggestions, onRefresh }: SuggestionsL
                         {suggestion.status}
                       </span>
                       <span className="text-xs text-gray-500">
-                        Round {suggestion.round} • {formatDate(suggestion.createdAt)}
+                        Round {suggestion.round} • {formatDateTime(suggestion.createdAt)}
                       </span>
                     </div>
                     <p className="text-gray-900 font-medium">"{suggestion.suggestionText}"</p>
@@ -184,7 +175,7 @@ export default function SuggestionsList({ suggestions, onRefresh }: SuggestionsL
                       <p className="text-sm text-gray-600 italic">Note: {suggestion.agentNotes}</p>
                     )}
                     <p className="text-xs text-gray-500 mt-2">
-                      Round {suggestion.round} • {formatDate(suggestion.createdAt)}
+                      Round {suggestion.round} • {formatDateTime(suggestion.createdAt)}
                     </p>
                   </div>
                 </div>

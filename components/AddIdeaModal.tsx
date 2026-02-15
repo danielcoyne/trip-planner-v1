@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import PlaceSearch from './PlaceSearch';
+import { dateToDayNumber, formatDateDisplay, formatDateRangeDisplay, formatDateForInput } from '@/lib/formatters';
 import type { PlaceSearchResult } from '@/types/trip';
 
 interface AddIdeaModalProps {
@@ -39,40 +40,6 @@ export default function AddIdeaModal({
   const isMultiDay = category === 'HOTEL' || category === 'AIRBNB';
 
   if (!isOpen) return null;
-
-  // Helper: Convert date string (YYYY-MM-DD) to day number
-  const dateToDayNumber = (dateStr: string): number => {
-    const tripStart = new Date(tripStartDate);
-    const selected = new Date(dateStr);
-    const diffTime = selected.getTime() - tripStart.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays + 1;
-  };
-
-  // Helper: Format date for display
-  const formatDateDisplay = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  // Helper: Format date range for display
-  const formatDateRangeDisplay = (startStr: string, endStr: string): string => {
-    const start = new Date(startStr);
-    const end = new Date(endStr);
-    const startDay = dateToDayNumber(startStr);
-    const endDay = dateToDayNumber(endStr);
-
-    return `${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} (Days ${startDay}-${endDay})`;
-  };
-
-  // Helper: Format YYYY-MM-DD for date input min/max
-  const formatDateForInput = (dateStr: string): string => {
-    return dateStr.split('T')[0];
-  };
 
   const handleDateChange = (value: string) => {
     setSelectedDate(value);
@@ -123,8 +90,8 @@ export default function AddIdeaModal({
 
     try {
       // Convert dates to day numbers
-      const day = selectedDate ? dateToDayNumber(selectedDate) : null;
-      const endDay = selectedEndDate ? dateToDayNumber(selectedEndDate) : null;
+      const day = selectedDate ? dateToDayNumber(selectedDate, tripStartDate) : null;
+      const endDay = selectedEndDate ? dateToDayNumber(selectedEndDate, tripStartDate) : null;
 
       const response = await fetch('/api/ideas', {
         method: 'POST',
@@ -279,7 +246,7 @@ export default function AddIdeaModal({
               />
               {selectedDate && (
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  {formatDateDisplay(selectedDate)} (Day {dateToDayNumber(selectedDate)})
+                  {formatDateDisplay(selectedDate)} (Day {dateToDayNumber(selectedDate, tripStartDate)})
                 </p>
               )}
             </div>
@@ -319,7 +286,7 @@ export default function AddIdeaModal({
                 />
                 {selectedEndDate && (
                   <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    {formatDateRangeDisplay(selectedDate, selectedEndDate)}
+                    {formatDateRangeDisplay(selectedDate, selectedEndDate, tripStartDate)}
                   </p>
                 )}
                 {endDateError && (

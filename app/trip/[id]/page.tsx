@@ -23,6 +23,9 @@ import {
 } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { formatTime } from '@/lib/formatters';
+import { getTripDays, getIdeasForDay, sortIdeasForDay } from '@/lib/tripUtils';
+import { CATEGORY_EMOJIS, CATEGORY_LABELS, STATE_DISPLAY, STATE_COLORS } from '@/lib/constants';
 import type { Trip, TripIdea, Place } from '@/types/trip';
 
 export default function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -121,7 +124,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tripId: id }),
       });
-      const data = await response.json();
+      await response.json();
 
       // Refresh trip data to get the new token
       await fetchTripData();
@@ -346,132 +349,19 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         ? realSegments[0].placeName
         : realSegments.map((s) => s.placeName).join(' → ');
 
-  // Calculate trip days
-  const getTripDays = () => {
-    const start = coerceDateOnly(trip.startDate);
-    const end = coerceDateOnly(trip.endDate);
-    const days = [];
-    let currentDate = new Date(start);
-    let dayNumber = 1;
-
-    while (currentDate <= end) {
-      days.push({
-        number: dayNumber,
-        date: new Date(currentDate),
-        formatted: currentDate.toLocaleDateString('en-US', {
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric',
-        }),
-      });
-      currentDate.setDate(currentDate.getDate() + 1);
-      dayNumber++;
-    }
-    return days;
-  };
-
-  const tripDays = getTripDays();
-
-  // Group ideas by day
-  const getIdeasForDay = (dayNumber: number) => {
-    return ideas.filter((idea) => {
-      if (!idea.day) return false;
-      // Single-day idea
-      if (!idea.endDay) return idea.day === dayNumber;
-      // Multi-day idea: show on all days in range
-      return idea.day <= dayNumber && dayNumber <= idea.endDay;
-    });
-  };
+  const tripDays = getTripDays(trip.startDate, trip.endDate);
 
   // Get unassigned ideas
   const unassignedIdeas = ideas.filter((idea) => !idea.day);
   const activeIdea = activeId ? ideas.find((i) => i.id === activeId) || null : null;
 
-  // Sort ideas within a day
-  const sortIdeasForDay = (dayIdeas: TripIdea[]) => {
-    const mealOrder: Record<string, number> = { BREAKFAST: 1, LUNCH: 2, DINNER: 3, SNACK: 4 };
-
-    return dayIdeas.sort((a, b) => {
-      // 1. sortOrder ascending (nulls last)
-      const aSort = a.sortOrder ?? Infinity;
-      const bSort = b.sortOrder ?? Infinity;
-      if (aSort !== bSort) return aSort - bSort;
-
-      // 2. Hotels/Airbnbs first
-      const aIsLodging = a.category === 'HOTEL' || a.category === 'AIRBNB';
-      const bIsLodging = b.category === 'HOTEL' || b.category === 'AIRBNB';
-      if (aIsLodging && !bIsLodging) return -1;
-      if (!aIsLodging && bIsLodging) return 1;
-
-      // 3. Time ascending (HH:MM strings sort correctly)
-      const aTime = a.time || '';
-      const bTime = b.time || '';
-      if (aTime !== bTime) return aTime < bTime ? -1 : 1;
-
-      // 4. Meal slot order
-      const aMeal = a.mealSlot ? mealOrder[a.mealSlot] || 99 : 99;
-      const bMeal = b.mealSlot ? mealOrder[b.mealSlot] || 99 : 99;
-      if (aMeal !== bMeal) return aMeal - bMeal;
-
-      // 5. createdAt
-      return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-    });
-  };
-
-  // Category emoji mapping
-  const categoryEmojis: Record<string, string> = {
-    RESTAURANT: '🍽️',
-    COFFEE: '☕',
-    BAR: '🍸',
-    ATTRACTION: '📍',
-    MUSEUM: '🏛️',
-    TOUR: '🚶',
-    HOTEL: '🏨',
-    AIRBNB: '🏠',
-    ACTIVITY: '🎯',
-    TRANSPORT: '🚗',
-  };
-
-  const categoryLabels: Record<string, string> = {
-    RESTAURANT: 'Restaurant',
-    COFFEE: 'Coffee & Café',
-    BAR: 'Bar & Cocktails',
-    ATTRACTION: 'Attraction',
-    MUSEUM: 'Museum',
-    TOUR: 'Tour',
-    HOTEL: 'Hotel',
-    AIRBNB: 'Airbnb / VRBO',
-    ACTIVITY: 'Activity',
-    TRANSPORT: 'Transport',
-  };
-
-  const stateDisplay: Record<string, { dot: string; label: string }> = {
-    ANCHOR: { dot: '🔴', label: 'Must-do' },
-    FLEXIBLE: { dot: '🟡', label: 'May-do' },
-    SPONTANEOUS: { dot: '🟢', label: 'Spontaneous' },
-  };
-
-  // Format time "19:30" → "7:30 PM"
-  const formatTime = (timeStr: string): string => {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const displayHours = hours % 12 || 12;
-    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
-  };
-
   const renderIdeaCard = (
     idea: TripIdea,
-    showDayRange = false,
+    _showDayRange = false,
     currentDayNumber: number | null = null
   ) => {
     const place = placesCache[idea.placeId];
     if (!place) return null;
-
-    const stateColors = {
-      ANCHOR: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
-      FLEXIBLE: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-      SPONTANEOUS: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
-    };
 
     const isAccommodation = idea.category === 'HOTEL' || idea.category === 'AIRBNB';
     const isFirstDayOfStay = idea.day === currentDayNumber || currentDayNumber === null;
@@ -484,7 +374,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
         >
           <div className="flex items-center gap-3 flex-wrap text-sm">
-            <span className="text-base">{categoryEmojis[idea.category] || '📍'}</span>
+            <span className="text-base">{CATEGORY_EMOJIS[idea.category] || '📍'}</span>
             <span className="font-medium text-gray-900 dark:text-white">{place.displayName}</span>
             <span className="text-gray-400 dark:text-gray-500 italic">(continued)</span>
             <span className="text-gray-400 dark:text-gray-500">•</span>
@@ -538,7 +428,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               <div className="flex justify-between items-start mb-2">
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
-                    {categoryEmojis[idea.category] || '📍'} {place.displayName}
+                    {CATEGORY_EMOJIS[idea.category] || '📍'} {place.displayName}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-300">
                     {place.formattedAddress}
@@ -574,9 +464,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               )}
 
               <div className="flex items-center gap-1.5 mt-1">
-                <span>{stateDisplay[idea.state]?.dot}</span>
+                <span>{STATE_DISPLAY[idea.state]?.dot}</span>
                 <span className="text-xs text-gray-600 dark:text-gray-400">
-                  {stateDisplay[idea.state]?.label}
+                  {STATE_DISPLAY[idea.state]?.label}
                 </span>
               </div>
 
@@ -622,7 +512,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           <div className="flex-1">
             <h3 className="font-semibold text-lg text-gray-900 dark:text-white flex items-center gap-2 flex-wrap">
               <span>
-                {categoryEmojis[idea.category] || '📍'} {place.displayName}
+                {CATEGORY_EMOJIS[idea.category] || '📍'} {place.displayName}
               </span>
               {idea.time && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
@@ -632,9 +522,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300">{place.formattedAddress}</p>
             <div className="flex items-center gap-1.5 mt-1">
-              <span>{stateDisplay[idea.state]?.dot}</span>
+              <span>{STATE_DISPLAY[idea.state]?.dot}</span>
               <span className="text-xs text-gray-600 dark:text-gray-400">
-                {stateDisplay[idea.state]?.label}
+                {STATE_DISPLAY[idea.state]?.label}
               </span>
             </div>
           </div>
@@ -658,8 +548,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           <div className="flex gap-4">
             <span className="font-medium">Category:</span>
             <span>
-              {categoryEmojis[idea.category] || '📍'}{' '}
-              {categoryLabels[idea.category] || idea.category}
+              {CATEGORY_EMOJIS[idea.category] || '📍'}{' '}
+              {CATEGORY_LABELS[idea.category] || idea.category}
             </span>
           </div>
           {idea.mealSlot && (
@@ -706,7 +596,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     return (
       <div
         key={idea.id}
-        className={`border-2 rounded-lg p-4 ${stateColors[idea.state as keyof typeof stateColors]}`}
+        className={`border-2 rounded-lg p-4 ${STATE_COLORS[idea.state]}`}
       >
         {idea.photos && idea.photos.length > 0 ? (
           <div className="flex gap-4">
@@ -981,7 +871,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 <div className="space-y-8">
                   {/* Day-by-Day Sections */}
                   {tripDays.map((day) => {
-                    const dayIdeas = sortIdeasForDay(getIdeasForDay(day.number));
+                    const dayIdeas = sortIdeasForDay(getIdeasForDay(ideas, day.number));
 
                     // Check if this day is the first day of a segment with notes
                     const segmentWithNotes = realSegments.find((seg) => {
