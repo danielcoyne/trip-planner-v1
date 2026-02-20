@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tripId, placeId, category, state, day, endDay, mealSlot, agentNotes } = body;
+    const { tripId, placeId, category, state, day, endDay, mealSlot, agentNotes, time, externalUrl, proposalId, price, destinationLabel } = body;
 
     if (!tripId || !placeId) {
       return NextResponse.json(
@@ -36,6 +36,11 @@ export async function POST(request: NextRequest) {
         endDay: endDay || null,
         mealSlot: mealSlot || null,
         agentNotes: agentNotes || null,
+        time: time || null,
+        externalUrl: externalUrl || null,
+        proposalId: proposalId || null,
+        price: price || null,
+        destinationLabel: destinationLabel || null,
         status: 'SUGGESTED',
         roundCreated: trip.currentRound,
         suggestedBy: 'AGENT'
@@ -67,7 +72,9 @@ export async function GET(request: NextRequest) {
     const ideas = await prisma.tripIdea.findMany({
       where: { tripId },
       include: {
-        reactions: true
+        reactions: true,
+        comments: { orderBy: { createdAt: 'desc' } },
+        photos: { orderBy: { sortOrder: 'asc' } }
       },
       orderBy: [
         { day: 'asc' },

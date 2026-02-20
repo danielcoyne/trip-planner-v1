@@ -5,12 +5,13 @@ import { fromYMD, toYMD } from '@/lib/dateOnly';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, destination, startDate, endDate, requirements } = body;
+    const { name, destination, clientName, startDate, endDate, requirements } = body;
 
     const trip = await prisma.trip.create({
       data: {
         name,
         destination: destination || null,
+        clientName: clientName || null,
         startDate: fromYMD(startDate),
         endDate: fromYMD(endDate),
         requirements: requirements || null,

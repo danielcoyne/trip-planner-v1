@@ -7,7 +7,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Auth.js models
+// ─── Auth.js models (unchanged) ──────────────────────────────────────────────
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -58,46 +59,145 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+// ─── Core trip models ─────────────────────────────────────────────────────────
+
 model Trip {
-  id                   String              @id @default(cuid())
-  name                 String
-  destination          String?
-  startDate            DateTime
-  endDate              DateTime
-  currentRound         Int                 @default(1)
-  status               String              @default("DRAFT")
-  requirements         String?             @db.Text
-  reviewToken          String?             @unique
-  coverImageUrl        String?
-  coverImageUpdatedAt  DateTime?
-  ideas                TripIdea[]
-  suggestions          ClientSuggestion[]
-  segments             TripSegment[]
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  id                  String          @id @default(cuid())
+  name                String
+  clientName          String?                          // v2: who is the client?
+  destination         String?
+  startDate           DateTime
+  endDate             DateTime
+  // status: DRAFT → REVIEW → PLANNING → CONFIRMED
+  status              String          @default("DRAFT")
+  requirements        String?         @db.Text
+  reviewToken         String?         @unique
+  coverImageUrl       String?
+  coverImageUpdatedAt DateTime?
+  // v2 relations
+  proposals           TripProposal[]
+  ideas               TripIdea[]
+  comments            TripComment[]
+  // v1 legacy (kept for safe additive migration — remove in future cleanup)
+  suggestions         ClientSuggestion[]
+  segments            TripSegment[]
+  currentRound        Int             @default(1)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 }
 
-model TripIdea {
-  id           String          @id @default(cuid())
-  tripId       String
-  trip         Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  placeId      String
-  category     String
-  state        String
-  day          Int?
-  endDay       Int?
-  mealSlot     String?
-  agentNotes   String?         @db.Text
-  status       String          @default("SUGGESTED")
-  roundCreated Int             @default(1)
-  suggestedBy  String          @default("AGENT")
-  reactions    IdeaReaction[]
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  
+// ─── v2: Proposals ────────────────────────────────────────────────────────────
+
+/// A full route option the agent presents to the client (e.g. "Rome & The Amalfi Coast")
+model TripProposal {
+  id          String         @id @default(cuid())
+  tripId      String
+  trip        Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  title       String                                   // e.g. "Rome & The Amalfi Coast"
+  description String?        @db.Text                 // agent narrative / why this works
+  sortOrder   Int            @default(0)
+  selected    Boolean        @default(false)           // client chose this one
+  stops       ProposalStop[]
+  ideas       TripIdea[]
+  comments    IdeaComment[]  // client/agent comments on this proposal
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
   @@index([tripId])
+}
+
+/// A destination stop within a proposal (e.g. "Rome: 4 nights")
+model ProposalStop {
+  id         String       @id @default(cuid())
+  proposalId String
+  proposal   TripProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  placeName  String                                    // e.g. "Rome", "Lake Como"
+  nightsCount Int?                                     // how many nights here
+  notes      String?      @db.Text                    // logistics notes (drive vs train, etc.)
+  sortOrder  Int          @default(0)
+  createdAt  DateTime     @default(now())
+
+  @@index([proposalId])
+}
+
+// ─── Ideas ────────────────────────────────────────────────────────────────────
+
+model TripIdea {
+  id               String         @id @default(cuid())
+  tripId           String
+  trip             Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  // v2: ideas can belong to a specific proposal, or to the confirmed itinerary (proposalId null)
+  proposalId       String?
+  proposal         TripProposal?  @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  placeId          String
+  category         String
+  state            String         // ANCHOR (must-do), FLEXIBLE (may-do), SPONTANEOUS
+  // v2: destination grouping (e.g. "Rome") — used instead of/alongside day
+  destinationLabel String?
+  day              Int?
+  endDay           Int?
+  mealSlot         String?
+  agentNotes       String?        @db.Text
+  price            String?                             // v2: e.g. "$480/night", "$120pp"
+  time             String?
+  externalUrl      String?
+  sortOrder        Int?
+  photos           EventPhoto[]
+  comments         IdeaComment[]
+  // v1 legacy fields (kept for safe migration)
+  status           String         @default("SUGGESTED")
+  roundCreated     Int            @default(1)
+  suggestedBy      String         @default("AGENT")
+  reactions        IdeaReaction[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([tripId])
+  @@index([proposalId])
   @@index([placeId])
 }
+
+model EventPhoto {
+  id        String   @id @default(cuid())
+  ideaId    String
+  idea      TripIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([ideaId])
+}
+
+// ─── v2: Comments (replaces IdeaReaction + ClientSuggestion) ─────────────────
+
+/// A comment on a specific idea — from agent or client
+model IdeaComment {
+  id         String        @id @default(cuid())
+  ideaId     String?
+  idea       TripIdea?     @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  proposalId String?
+  proposal   TripProposal? @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  author     String                                    // "AGENT" | "CLIENT"
+  text       String        @db.Text
+  createdAt  DateTime      @default(now())
+
+  @@index([ideaId])
+  @@index([proposalId])
+}
+
+/// A trip-level comment — general back-and-forth between agent and client
+model TripComment {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  author    String                                     // "AGENT" | "CLIENT"
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([tripId])
+}
+
+// ─── Google Places cache (unchanged) ─────────────────────────────────────────
 
 model GooglePlaceCache {
   placeId          String   @id
@@ -110,9 +210,11 @@ model GooglePlaceCache {
   rating           Float?
   cachedAt         DateTime @default(now())
   expiresAt        DateTime
-  
+
   @@index([expiresAt])
 }
+
+// ─── v1 legacy models (kept for safe migration — remove in future cleanup) ────
 
 model IdeaReaction {
   id          String   @id @default(cuid())
@@ -121,7 +223,7 @@ model IdeaReaction {
   reaction    String
   clientNotes String?  @db.Text
   createdAt   DateTime @default(now())
-  
+
   @@index([ideaId])
 }
 
@@ -143,16 +245,13 @@ model TripSegment {
   id        String   @id @default(cuid())
   tripId    String
   trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-
   startDate DateTime
   endDate   DateTime
-
   placeName String
   lat       Float?
   lng       Float?
   timezone  String?
   notes     String?  @db.Text
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

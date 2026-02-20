@@ -4,8 +4,8 @@ import { SessionProvider } from "@/components/SessionProvider";
 import { UserMenu } from "@/components/UserMenu";
 
 export const metadata: Metadata = {
-  title: "Trip Planner - Audrey's Dashboard",
-  description: "Collaborative trip planning for travel agents",
+  title: "Away with Audrey",
+  description: "Bespoke travel itineraries by Audrey",
 };
 
 export default function RootLayout({
@@ -19,7 +19,7 @@ export default function RootLayout({
         <SessionProvider>
           <nav className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Trip Planner</h1>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Away with Audrey</h1>
               <UserMenu />
             </div>
           </nav>

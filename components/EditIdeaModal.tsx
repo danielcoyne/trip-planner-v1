@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { fromYMD, toYMD } from '@/lib/dateOnly';
 
 interface EditIdeaModalProps {
@@ -12,15 +12,19 @@ interface EditIdeaModalProps {
     endDay: number | null;
     mealSlot: string | null;
     agentNotes: string | null;
+    time: string | null;
+    externalUrl: string | null;
+    photos: Array<{ id: string; url: string; sortOrder: number }>;
   };
   tripStartDate: string;
   tripEndDate: string;
   placeName: string;
   onClose: () => void;
-  onSave: (ideaId: string, updates: any) => void;
+  onSave: (ideaId: string, updates: any) => void | Promise<void>;
+  onSaved?: () => void;
 }
 
-export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeName, onClose, onSave }: EditIdeaModalProps) {
+export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeName, onClose, onSave, onSaved }: EditIdeaModalProps) {
   // Helper: Convert day number to date string (YYYY-MM-DD)
   const dayNumberToDate = (dayNum: number | null): string => {
     if (!dayNum) return '';
@@ -36,8 +40,17 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
     selectedEndDate: dayNumberToDate(idea.endDay),
     mealSlot: idea.mealSlot || '',
     agentNotes: idea.agentNotes || '',
+    time: idea.time || '',
+    externalUrl: idea.externalUrl || '',
   });
+
+  const isMultiDay = formData.category === 'HOTEL' || formData.category === 'AIRBNB';
   const [endDateError, setEndDateError] = useState<string>('');
+  const [existingPhotos, setExistingPhotos] = useState(idea.photos || []);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Helper: Convert date string (YYYY-MM-DD) to day number
   const dateToDayNumber = (dateStr: string): number => {
@@ -100,6 +113,15 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
     }
   };
 
+  const handleDeletePhoto = async (photoId: string) => {
+    try {
+      await fetch(`/api/ideas/${idea.id}/photos/${photoId}`, { method: 'DELETE' });
+      setExistingPhotos(prev => prev.filter(p => p.id !== photoId));
+    } catch (error) {
+      console.error('Error deleting photo:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -108,6 +130,8 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
       alert('End date must be after start date');
       return;
     }
+
+    setSaving(true);
 
     // Convert dates to day numbers
     const day = formData.selectedDate ? dateToDayNumber(formData.selectedDate) : null;
@@ -120,9 +144,29 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
       endDay,
       mealSlot: formData.mealSlot || null,
       agentNotes: formData.agentNotes || null,
+      time: formData.time || null,
+      externalUrl: formData.externalUrl || null,
     };
 
-    onSave(idea.id, updates);
+    await onSave(idea.id, updates);
+
+    // Upload new photos sequentially
+    if (selectedFiles.length > 0) {
+      for (let i = 0; i < selectedFiles.length; i++) {
+        setUploadProgress(`Uploading photo ${i + 1} of ${selectedFiles.length}...`);
+        const photoFormData = new FormData();
+        photoFormData.append('file', selectedFiles[i]);
+        await fetch(`/api/ideas/${idea.id}/photos`, {
+          method: 'POST',
+          body: photoFormData,
+        });
+      }
+      setUploadProgress('');
+    }
+
+    setSaving(false);
+    onSaved?.();
+    onClose();
   };
 
   return (
@@ -152,11 +196,15 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
                 required
               >
                 <option value="RESTAURANT">Restaurant</option>
+                <option value="COFFEE">Coffee &amp; Caf&eacute;</option>
+                <option value="BAR">Bar &amp; Cocktails</option>
                 <option value="ATTRACTION">Attraction</option>
+                <option value="MUSEUM">Museum</option>
+                <option value="TOUR">Tour</option>
                 <option value="HOTEL">Hotel</option>
+                <option value="AIRBNB">Airbnb / VRBO</option>
                 <option value="ACTIVITY">Activity</option>
                 <option value="TRANSPORT">Transport</option>
-                <option value="GENERAL">General</option>
               </select>
             </div>
 
@@ -171,16 +219,16 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 required
               >
-                <option value="ANCHOR">Anchor (must-do)</option>
-                <option value="FLEXIBLE">Flexible (do if nearby)</option>
-                <option value="SPONTANEOUS">Spontaneous (nice-to-have)</option>
+                <option value="ANCHOR">Must-do</option>
+                <option value="FLEXIBLE">May-do</option>
+                <option value="SPONTANEOUS">Spontaneous</option>
               </select>
             </div>
 
             {/* Date */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Date (optional)
+                {isMultiDay ? 'Check-in Date (optional)' : 'Date (optional)'}
               </label>
               <input
                 type="date"
@@ -197,13 +245,27 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
               )}
             </div>
 
-            {/* End Date (only show if date is selected) */}
-            {formData.selectedDate !== '' && (
+            {/* Time (single-day categories only) */}
+            {!isMultiDay && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  End Date (optional)
+                  Time (optional)
                 </label>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">For multi-day stays (e.g., hotels)</p>
+                <input
+                  type="time"
+                  value={formData.time}
+                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+            )}
+
+            {/* Check-out Date (multi-day categories only) */}
+            {isMultiDay && formData.selectedDate !== '' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Check-out Date (optional)
+                </label>
                 <input
                   type="date"
                   min={formData.selectedDate}
@@ -222,6 +284,22 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
                 {endDateError && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">{endDateError}</p>
                 )}
+              </div>
+            )}
+
+            {/* Property Link (AIRBNB only) */}
+            {formData.category === 'AIRBNB' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Property Link (optional)
+                </label>
+                <input
+                  type="url"
+                  value={formData.externalUrl}
+                  onChange={(e) => setFormData({ ...formData, externalUrl: e.target.value })}
+                  placeholder="https://airbnb.com/rooms/..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                />
               </div>
             )}
 
@@ -258,13 +336,70 @@ export default function EditIdeaModal({ idea, tripStartDate, tripEndDate, placeN
               />
             </div>
 
+            {/* Photos */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Photos (optional)
+              </label>
+              {(existingPhotos.length > 0 || selectedFiles.length > 0) && (
+                <div className="flex gap-2 overflow-x-auto mb-2 pb-1">
+                  {existingPhotos.map(photo => (
+                    <div key={photo.id} className="relative flex-shrink-0 w-20 h-20 rounded-lg border border-gray-200 dark:border-gray-600">
+                      <img
+                        src={photo.url}
+                        alt=""
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePhoto(photo.id)}
+                        className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  ))}
+                  {selectedFiles.map((file, index) => (
+                    <div key={`new-${index}`} className="relative flex-shrink-0 w-20 h-20 rounded-lg border border-gray-200 dark:border-gray-600">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={file.name}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== index))}
+                        className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                multiple
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setSelectedFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                  }
+                  e.target.value = '';
+                }}
+                className="w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100"
+              />
+            </div>
+
             {/* Buttons */}
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                disabled={saving}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
               >
-                Save Changes
+                {uploadProgress || (saving ? 'Saving...' : 'Save Changes')}
               </button>
               <button
                 type="button"

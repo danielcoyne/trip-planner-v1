@@ -33,7 +33,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    const { category, state, day, endDay, mealSlot, agentNotes } = body;
+    const { category, state, day, endDay, mealSlot, agentNotes, time, externalUrl, proposalId, price, destinationLabel } = body;
 
     const updatedIdea = await prisma.tripIdea.update({
       where: { id },
@@ -44,6 +44,11 @@ export async function PATCH(
         endDay: endDay !== undefined ? endDay : undefined,
         mealSlot: mealSlot !== undefined ? mealSlot : undefined,
         agentNotes: agentNotes !== undefined ? agentNotes : undefined,
+        time: time !== undefined ? time : undefined,
+        externalUrl: externalUrl !== undefined ? externalUrl : undefined,
+        proposalId: proposalId !== undefined ? proposalId : undefined,
+        price: price !== undefined ? price : undefined,
+        destinationLabel: destinationLabel !== undefined ? destinationLabel : undefined,
       },
     });
 

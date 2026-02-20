@@ -15,20 +15,29 @@ export async function GET(
       );
     }
 
-    // Fetch trip with ideas
+    // Fetch trip with proposals, ideas, and comments
     const trip = await prisma.trip.findUnique({
       where: { reviewToken: token },
       include: {
-        ideas: {
-          orderBy: [
-            { day: 'asc' },
-            { createdAt: 'asc' }
-          ],
+        proposals: {
+          orderBy: { sortOrder: 'asc' },
           include: {
-            reactions: true
-          }
-        }
-      }
+            stops: { orderBy: { sortOrder: 'asc' } },
+            ideas: {
+              include: { photos: { orderBy: { sortOrder: 'asc' } } },
+              orderBy: { sortOrder: 'asc' },
+            },
+          },
+        },
+        ideas: {
+          orderBy: [{ destinationLabel: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
+          include: {
+            photos: { orderBy: { sortOrder: 'asc' } },
+            comments: { orderBy: { createdAt: 'asc' } },
+          },
+        },
+        comments: { orderBy: { createdAt: 'asc' } },
+      },
     });
 
     if (!trip) {

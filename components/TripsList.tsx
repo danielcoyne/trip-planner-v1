@@ -9,10 +9,17 @@ type Trip = {
   id: string
   name: string
   destination: string | null
+  clientName: string | null
   startDate: Date
   endDate: Date
-  currentRound: number
   status: string
+}
+
+const statusConfig: Record<string, { label: string; className: string }> = {
+  DRAFT:     { label: 'Draft',     className: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300' },
+  REVIEW:    { label: 'In Review', className: 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300' },
+  PLANNING:  { label: 'Planning',  className: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300' },
+  CONFIRMED: { label: 'Confirmed', className: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300' },
 }
 
 type TripsListProps = {
@@ -73,14 +80,26 @@ export default function TripsList({ initialTrips }: TripsListProps) {
                 href={`/trip/${trip.id}`}
                 className="block"
               >
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{trip.name}</h2>
-                <p className="text-gray-600 dark:text-gray-300">{trip.destination}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{trip.name}</h2>
+                  {(() => {
+                    const cfg = statusConfig[trip.status] ?? statusConfig.DRAFT
+                    return (
+                      <span className={`flex-shrink-0 mt-0.5 inline-block px-2 py-0.5 text-xs font-medium rounded-full ${cfg.className}`}>
+                        {cfg.label}
+                      </span>
+                    )
+                  })()}
+                </div>
+                {trip.clientName && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">for {trip.clientName}</p>
+                )}
+                {trip.destination && (
+                  <p className="text-gray-600 dark:text-gray-300">{trip.destination}</p>
+                )}
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+                  {new Date(trip.startDate).toLocaleDateString()} – {new Date(trip.endDate).toLocaleDateString()}
                 </p>
-                <span className="inline-block mt-2 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
-                  Round {trip.currentRound} • {trip.status}
-                </span>
               </Link>
 
               {/* Delete button - positioned in top-right corner */}

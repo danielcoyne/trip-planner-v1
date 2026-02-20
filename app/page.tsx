@@ -13,7 +13,7 @@ export default async function HomePage() {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Audrey&apos;s Trips</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Trips</h1>
         <Link
           href="/trip/new"
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"

@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { coerceDateOnly } from '@/lib/dateOnly';
 
-interface Trip {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ProposalStop {
   id: string;
-  name: string;
-  destination: string;
-  startDate: string;
-  endDate: string;
-  currentRound: number;
-  requirements: string | null;
+  placeName: string;
+  nightsCount: number | null;
+  notes: string | null;
 }
 
 interface TripIdea {
@@ -18,389 +18,482 @@ interface TripIdea {
   placeId: string;
   category: string;
   state: string;
+  destinationLabel: string | null;
   day: number | null;
   endDay: number | null;
-  mealSlot: string | null;
   agentNotes: string | null;
-  reactions: IdeaReaction[];
+  price: string | null;
+  time: string | null;
+  externalUrl: string | null;
+  photos: Array<{ id: string; url: string }>;
+  comments: Array<{ id: string; author: string; text: string }>;
 }
 
-interface IdeaReaction {
+interface TripProposal {
   id: string;
-  reaction: string;
-  clientNotes: string | null;
+  title: string;
+  description: string | null;
+  sortOrder: number;
+  selected: boolean;
+  stops: ProposalStop[];
+  ideas: TripIdea[];
 }
 
-interface PlaceCache {
-  placeId: string;
+interface TripComment {
+  id: string;
+  author: string;
+  text: string;
+}
+
+interface Trip {
+  id: string;
+  name: string;
+  clientName: string | null;
+  startDate: string;
+  endDate: string;
+  status: string;
+  requirements: string | null;
+  proposals: TripProposal[];
+  ideas: TripIdea[];
+  comments: TripComment[];
+}
+
+interface Place {
   displayName: string;
   formattedAddress: string;
   rating: number | null;
   googleMapsUri: string;
-  lat: number;
-  lng: number;
 }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  RESTAURANT: '🍽️', COFFEE: '☕', BAR: '🍸', ATTRACTION: '📍',
+  MUSEUM: '🏛️', TOUR: '🚶', HOTEL: '🏨', AIRBNB: '🏠', ACTIVITY: '🎯', TRANSPORT: '🚗',
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ReviewPage() {
   const params = useParams();
   const token = params.token as string;
 
   const [trip, setTrip] = useState<Trip | null>(null);
-  const [ideas, setIdeas] = useState<TripIdea[]>([]);
-  const [placesCache, setPlacesCache] = useState<Record<string, PlaceCache>>({});
-  const [reactions, setReactions] = useState<Record<string, { reaction: string; notes: string }>>({});
-  const [suggestionText, setSuggestionText] = useState('');
+  const [placesCache, setPlacesCache] = useState<Record<string, Place>>({});
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+
+  // Phase 1 state
+  const [proposalComments, setProposalComments] = useState<Record<string, string>>({});
+  const [selectingProposal, setSelectingProposal] = useState<string | null>(null);
+  const [selectionDone, setSelectionDone] = useState(false);
+
+  // Phase 2 state
+  const [ideaComments, setIdeaComments] = useState<Record<string, string>>({});
+  const [generalComment, setGeneralComment] = useState('');
+  const [submittingComments, setSubmittingComments] = useState(false);
+  const [commentsDone, setCommentsDone] = useState(false);
+
+  // ─── Data loading ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    fetchTripData();
+    if (!token) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/review/${token}`);
+        const data = await res.json();
+        if (!data.trip) { setNotFound(true); return; }
+        const t: Trip = data.trip;
+        setTrip(t);
+        if (t.proposals.some(p => p.selected)) setSelectionDone(true);
+
+        // Fetch places
+        const allIdeas = [...t.ideas, ...t.proposals.flatMap(p => p.ideas)];
+        const placeIds = [...new Set(allIdeas.map(i => i.placeId))] as string[];
+        const places: Record<string, Place> = {};
+        await Promise.all(placeIds.map(async pid => {
+          try {
+            const r = await fetch(`/api/places/${pid}`);
+            const d = await r.json();
+            if (d.place) places[pid] = d.place;
+          } catch {}
+        }));
+        setPlacesCache(places);
+      } catch { setNotFound(true); }
+      finally { setLoading(false); }
+    })();
   }, [token]);
 
-  const fetchTripData = async () => {
-    setLoading(true);
+  // ─── Phase 1: Select proposal ─────────────────────────────────────────────
+
+  const handleSelectProposal = async (proposalId: string) => {
+    setSelectingProposal(proposalId);
     try {
-      // Fetch trip by token
-      const response = await fetch(`/api/review/${token}`);
-      
-      if (!response.ok) {
-        throw new Error('Trip not found');
-      }
-
-      const data = await response.json();
-      setTrip(data.trip);
-      const tripIdeas = data.trip.ideas || [];
-      setIdeas(tripIdeas);
-
-      // Load existing reactions
-      const existingReactions: Record<string, { reaction: string; notes: string }> = {};
-      tripIdeas.forEach((idea: TripIdea) => {
-        if (idea.reactions && idea.reactions.length > 0) {
-          const reaction = idea.reactions[0];
-          existingReactions[idea.id] = {
-            reaction: reaction.reaction,
-            notes: reaction.clientNotes || ''
-          };
-        }
-      });
-      setReactions(existingReactions);
-
-      // Fetch place details for each unique placeId
-      const placeIds = [...new Set(tripIdeas.map((idea: TripIdea) => idea.placeId))];
-      const places: Record<string, PlaceCache> = {};
-
-      for (const placeId of placeIds) {
-        if (typeof placeId !== 'string') continue;
-
-        try {
-          const placeResponse = await fetch(`/api/places/${placeId}`);
-          const placeData = await placeResponse.json();
-          if (placeData.place) {
-            // Add placeId to the place object
-            places[placeId] = {
-              ...placeData.place,
-              placeId: placeId
-            };
-          }
-        } catch (error) {
-          console.error(`Error fetching place ${placeId}:`, error);
-        }
-      }
-
-      setPlacesCache(places);
-    } catch (error) {
-      console.error('Error fetching trip data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReaction = (ideaId: string, reaction: string) => {
-    setReactions(prev => ({
-      ...prev,
-      [ideaId]: {
-        reaction,
-        notes: prev[ideaId]?.notes || ''
-      }
-    }));
-  };
-
-  const handleNotes = (ideaId: string, notes: string) => {
-    setReactions(prev => ({
-      ...prev,
-      [ideaId]: {
-        reaction: prev[ideaId]?.reaction || '',
-        notes
-      }
-    }));
-  };
-
-  const handleSubmit = async () => {
-    setSubmitting(true);
-
-    try {
-      // Submit all reactions
-      const reactionPromises = Object.entries(reactions)
-        .filter(([_, data]) => data.reaction)
-        .map(([ideaId, data]) =>
-          fetch('/api/reactions', {
+      // Post proposal comments
+      await Promise.all(
+        Object.entries(proposalComments)
+          .filter(([, t]) => t.trim())
+          .map(([pid, text]) => fetch('/api/comments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ideaId,
-              reaction: data.reaction,
-              clientNotes: data.notes || null
-            })
-          })
-        );
+            body: JSON.stringify({ proposalId: pid, author: 'CLIENT', text: text.trim() }),
+          })),
+      );
+      // Select the proposal
+      await fetch(`/api/proposals/${proposalId}/select`, { method: 'POST' });
+      setSelectionDone(true);
+      // Reload trip
+      const res = await fetch(`/api/review/${token}`);
+      const data = await res.json();
+      if (data.trip) setTrip(data.trip);
+    } finally { setSelectingProposal(null); }
+  };
 
-      await Promise.all(reactionPromises);
+  // ─── Phase 2: Submit comments ─────────────────────────────────────────────
 
-      // Submit suggestion if provided
-      if (suggestionText.trim() && trip) {
-        await fetch('/api/suggestions', {
+  const handleSubmitComments = async () => {
+    if (!trip) return;
+    setSubmittingComments(true);
+    try {
+      await Promise.all(
+        Object.entries(ideaComments)
+          .filter(([, t]) => t.trim())
+          .map(([ideaId, text]) => fetch('/api/comments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ideaId, author: 'CLIENT', text: text.trim() }),
+          })),
+      );
+      if (generalComment.trim()) {
+        await fetch('/api/comments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tripId: trip.id,
-            suggestionText: suggestionText.trim()
-          })
+          body: JSON.stringify({ tripId: trip.id, author: 'CLIENT', text: generalComment.trim() }),
         });
       }
-
-      setSubmitted(true);
-    } catch (error) {
-      console.error('Error submitting feedback:', error);
-      alert('Failed to submit feedback. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
+      setCommentsDone(true);
+    } finally { setSubmittingComments(false); }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
+  // ─── Loading / not found ───────────────────────────────────────────────────
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+  if (loading) return (
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+      <p className="text-gray-500">Loading your trip...</p>
+    </div>
+  );
+
+  if (notFound || !trip) return (
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+      <div className="text-center">
+        <p className="text-2xl font-bold text-gray-900 mb-2">Link not found</p>
+        <p className="text-gray-500">This review link may have expired or been removed.</p>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (!trip) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Trip Not Found</h1>
-          <p className="text-gray-600 dark:text-gray-400">This review link may have expired or is invalid.</p>
-        </div>
+  if (commentsDone) return (
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-6">
+      <div className="max-w-md text-center">
+        <div className="text-5xl mb-4">🎉</div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-3">Thanks for your feedback!</h2>
+        <p className="text-gray-600">Your comments have been sent to your travel agent. They'll be in touch soon.</p>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-        <div className="max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 text-center border border-gray-200 dark:border-gray-700">
-          <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Feedback Submitted!</h1>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Thank you for your feedback. Your travel agent will review your responses and refine the itinerary.
-          </p>
-          <button
-            onClick={() => {
-              setSubmitted(false);
-              fetchTripData();
-            }}
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            View your responses
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const hasReactions = Object.values(reactions).some(r => r.reaction);
+  const dateRange = `${coerceDateOnly(trip.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} – ${coerceDateOnly(trip.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+  const isProposalPhase = trip.status === 'DRAFT' || trip.status === 'REVIEW';
+  const selectedProposal = trip.proposals.find(p => p.selected) ?? null;
+  const destinations = [...new Set(trip.ideas.map(i => i.destinationLabel).filter(Boolean))] as string[];
+  const unassignedIdeas = trip.ideas.filter(i => !i.destinationLabel);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 border border-gray-200 dark:border-gray-700">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{trip.name}</h1>
-          <p className="text-gray-600 dark:text-gray-300 text-lg">{trip.destination}</p>
-          <p className="text-gray-600 dark:text-gray-400">
-            {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
-          </p>
+    <div className="min-h-screen bg-stone-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-6">
+        <div className="max-w-4xl mx-auto">
+          <p className="text-sm text-gray-400 mb-1">Your trip proposal</p>
+          <h1 className="text-3xl font-bold text-gray-900">{trip.name}</h1>
+          <p className="text-gray-500 mt-1">{dateRange}</p>
+          {trip.clientName && <p className="text-sm text-gray-400 mt-0.5">For {trip.clientName}</p>}
+        </div>
+      </div>
 
-          {trip.requirements && (
-            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Your Requirements:</p>
-              <p className="text-gray-700 dark:text-gray-300">{trip.requirements}</p>
-            </div>
-          )}
+      <div className="max-w-4xl mx-auto px-6 py-10 space-y-10">
 
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Round {trip.currentRound} • Review each idea and let us know what you think!
-            </p>
+        {/* Client requirements recap */}
+        {trip.requirements && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Your Requirements</h2>
+            <p className="text-gray-700 text-sm leading-relaxed">{trip.requirements}</p>
           </div>
-        </div>
+        )}
 
-        {/* Instructions */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
-          <h2 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">How to Review:</h2>
-          <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-            <li>• ❤️ <strong>Love It</strong> - Definitely want to do this</li>
-            <li>• 🤔 <strong>Maybe</strong> - Interested but not sure</li>
-            <li>• ❌ <strong>Pass</strong> - Not interested</li>
-            <li>• Add notes to explain your thoughts or preferences</li>
-          </ul>
-        </div>
+        {/* Agent notes */}
+        {trip.comments.filter(c => c.author === 'AGENT').length > 0 && (
+          <div className="bg-blue-50 rounded-2xl border border-blue-200 p-6">
+            <h2 className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-3">Note from your agent</h2>
+            {trip.comments.filter(c => c.author === 'AGENT').map((c, i) => (
+              <p key={i} className="text-gray-700 text-sm leading-relaxed">{c.text}</p>
+            ))}
+          </div>
+        )}
 
-        {/* Ideas */}
-        <div className="space-y-4 mb-6">
-          {ideas.map((idea) => {
-            const place = placesCache[idea.placeId];
-            const currentReaction = reactions[idea.id];
-
-            return (
-              <div key={idea.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-                <div className="mb-4">
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">
-                    {place?.displayName || 'Loading...'}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">
-                    {place?.formattedAddress}
-                  </p>
-
-                  <div className="flex gap-2 flex-wrap mb-3">
-                    <span className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-full text-sm">
-                      {idea.category}
-                    </span>
-                    {idea.day && (
-                      <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 rounded-full text-sm">
-                        Day {idea.day}
+        {/* ════ PHASE 1: Proposal selection ════ */}
+        {isProposalPhase && !selectionDone && trip.proposals.length > 0 && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose your adventure</h2>
+            <p className="text-gray-500 mb-8 text-sm">
+              We've put together {trip.proposals.length} different itinerary option{trip.proposals.length !== 1 ? 's' : ''}.
+              Leave comments on any that catch your eye, then hit "This is the one!" when you're ready.
+            </p>
+            <div className="grid gap-8">
+              {trip.proposals.map((proposal, index) => (
+                <div key={proposal.id} className="bg-white rounded-2xl border-2 border-gray-200 overflow-hidden shadow-sm">
+                  <div className="p-6 border-b border-gray-100">
+                    <div className="flex items-start gap-4 mb-4">
+                      <span className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-lg">
+                        {index + 1}
                       </span>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">{proposal.title}</h3>
+                        {proposal.description && (
+                          <p className="text-gray-600 mt-2 text-sm leading-relaxed">{proposal.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    {proposal.stops.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 ml-14">
+                        {proposal.stops.map((stop, i) => (
+                          <span key={stop.id} className="flex items-center gap-1.5">
+                            {i > 0 && <span className="text-gray-300">→</span>}
+                            <span className="px-3 py-1 rounded-full bg-gray-100 text-sm font-medium text-gray-700">
+                              📍 {stop.placeName}{stop.nightsCount ? ` (${stop.nightsCount}n)` : ''}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
                     )}
-                    {place?.rating && (
-                      <span className="inline-block px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 rounded-full text-sm">
-                        ⭐ {place.rating.toFixed(1)}
-                      </span>
+                    {proposal.stops.some(s => s.notes) && (
+                      <div className="mt-3 ml-14 space-y-1">
+                        {proposal.stops.filter(s => s.notes).map(s => (
+                          <p key={s.id} className="text-xs text-gray-500 italic">{s.placeName}: {s.notes}</p>
+                        ))}
+                      </div>
                     )}
                   </div>
 
-                  {idea.agentNotes && (
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600 dark:border-blue-500 rounded">
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Why this place:</p>
-                      <p className="text-gray-700 dark:text-gray-300 text-sm">{idea.agentNotes}</p>
+                  {/* Highlights */}
+                  {proposal.ideas.length > 0 && (
+                    <div className="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Highlights</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {proposal.ideas.slice(0, 6).map(idea => {
+                          const place = placesCache[idea.placeId];
+                          if (!place) return null;
+                          const isLodging = idea.category === 'HOTEL' || idea.category === 'AIRBNB';
+                          return (
+                            <div key={idea.id} className={`flex items-center gap-3 p-2.5 rounded-xl border ${isLodging ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-gray-200'}`}>
+                              {idea.photos?.[0] ? (
+                                <img src={idea.photos[0].url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                              ) : (
+                                <span className="text-xl flex-shrink-0">{CATEGORY_EMOJI[idea.category]}</span>
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">{place.displayName}</p>
+                                {idea.price && <p className="text-xs text-gray-500">{idea.price}</p>}
+                                {idea.destinationLabel && <p className="text-xs text-gray-400">📍 {idea.destinationLabel}</p>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {proposal.ideas.length > 6 && (
+                        <p className="text-xs text-gray-400 mt-2">+ {proposal.ideas.length - 6} more ideas</p>
+                      )}
                     </div>
                   )}
-                </div>
 
-                {/* Reaction Buttons */}
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Your reaction:</p>
-                  <div className="flex gap-2">
+                  {/* Comment + select button */}
+                  <div className="p-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Thoughts on this option?</label>
+                    <textarea
+                      value={proposalComments[proposal.id] || ''}
+                      onChange={e => setProposalComments(prev => ({ ...prev, [proposal.id]: e.target.value }))}
+                      placeholder="What do you like? Any questions or concerns?"
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white text-gray-900 placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
                     <button
-                      onClick={() => handleReaction(idea.id, 'LOVE')}
-                      className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors ${
-                        currentReaction?.reaction === 'LOVE'
-                          ? 'bg-red-50 dark:bg-red-900/30 border-red-500 dark:border-red-600 text-red-700 dark:text-red-300'
-                          : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-red-300 dark:hover:border-red-600'
-                      }`}
+                      onClick={() => handleSelectProposal(proposal.id)}
+                      disabled={!!selectingProposal}
+                      className="mt-3 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors disabled:bg-gray-400"
                     >
-                      ❤️ Love It
-                    </button>
-                    <button
-                      onClick={() => handleReaction(idea.id, 'MAYBE')}
-                      className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors ${
-                        currentReaction?.reaction === 'MAYBE'
-                          ? 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-500 dark:border-yellow-600 text-yellow-700 dark:text-yellow-300'
-                          : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-yellow-300 dark:hover:border-yellow-600'
-                      }`}
-                    >
-                      🤔 Maybe
-                    </button>
-                    <button
-                      onClick={() => handleReaction(idea.id, 'PASS')}
-                      className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors ${
-                        currentReaction?.reaction === 'PASS'
-                          ? 'bg-gray-100 dark:bg-gray-600 border-gray-500 dark:border-gray-500 text-gray-700 dark:text-gray-300'
-                          : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500'
-                      }`}
-                    >
-                      ❌ Pass
+                      {selectingProposal === proposal.id ? 'Selecting...' : '✓ This is the one!'}
                     </button>
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-                {/* Notes */}
-                {currentReaction?.reaction && (
+        {/* Selection confirmed */}
+        {selectionDone && selectedProposal && isProposalPhase && (
+          <div className="bg-green-50 border-2 border-green-300 rounded-2xl p-6 text-center">
+            <p className="text-2xl mb-2">🎉</p>
+            <p className="font-bold text-green-900 text-lg">Great choice!</p>
+            <p className="text-green-700 text-sm mt-1">
+              You've selected <strong>{selectedProposal.title}</strong>. Your agent will now build out the full itinerary.
+            </p>
+          </div>
+        )}
+
+        {/* ════ PHASE 2: Itinerary review ════ */}
+        {(trip.status === 'PLANNING' || trip.status === 'CONFIRMED') && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Itinerary</h2>
+            {selectedProposal && (
+              <p className="text-gray-500 mb-1 text-sm">Based on: {selectedProposal.title}</p>
+            )}
+            <p className="text-gray-500 mb-8 text-sm">
+              Browse the itinerary below and leave comments on anything you'd like to discuss.
+            </p>
+
+            {trip.ideas.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
+                <p className="text-3xl mb-3">🗺️</p>
+                <p className="font-semibold text-gray-900 mb-1">Itinerary coming soon</p>
+                <p className="text-sm text-gray-500">Your agent is building out the details. Check back soon!</p>
+              </div>
+            ) : (
+              <div className="space-y-10">
+                {destinations.map(dest => (
+                  <div key={dest}>
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">📍 {dest}</h3>
+                    <div className="space-y-4">
+                      {trip.ideas.filter(i => i.destinationLabel === dest).map(idea =>
+                        <IdeaCard key={idea.id} idea={idea} place={placesCache[idea.placeId]} comment={ideaComments[idea.id] || ''} onCommentChange={text => setIdeaComments(prev => ({ ...prev, [idea.id]: text }))} />
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {unassignedIdeas.length > 0 && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Your notes (optional):
-                    </label>
-                    <textarea
-                      value={currentReaction.notes}
-                      onChange={(e) => handleNotes(idea.id, e.target.value)}
-                      rows={2}
-                      placeholder="Any preferences or questions about this place?"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
+                    <h3 className="text-lg font-bold text-gray-700 mb-4">Flexible Options</h3>
+                    <div className="space-y-4">
+                      {unassignedIdeas.map(idea =>
+                        <IdeaCard key={idea.id} idea={idea} place={placesCache[idea.placeId]} comment={ideaComments[idea.id] || ''} onCommentChange={text => setIdeaComments(prev => ({ ...prev, [idea.id]: text }))} />
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-            );
-          })}
-        </div>
-
-        {/* Suggestions */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            Anything we're missing?
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Have a place you'd like to visit? Let us know!
-          </p>
-          <textarea
-            value={suggestionText}
-            onChange={(e) => setSuggestionText(e.target.value)}
-            rows={3}
-            placeholder="e.g., My friend recommended Rimessa Roscioli for lunch"
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-          />
-        </div>
-
-        {/* Submit Button */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
-          <div className="max-w-3xl mx-auto">
-            <button
-              onClick={handleSubmit}
-              disabled={!hasReactions || submitting}
-              className="w-full py-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-            >
-              {submitting ? 'Submitting...' : 'Submit Feedback'}
-            </button>
-            {!hasReactions && (
-              <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">
-                Please react to at least one idea before submitting
-              </p>
             )}
+
+            {/* General comment + submit */}
+            <div className="mt-10 bg-white rounded-2xl border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-900 mb-1">Anything else?</h3>
+              <p className="text-sm text-gray-500 mb-3">Missing something? A place you've always wanted to visit?</p>
+              <textarea
+                value={generalComment}
+                onChange={e => setGeneralComment(e.target.value)}
+                placeholder="General thoughts, questions, or requests..."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white text-gray-900 placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <button
+                onClick={handleSubmitComments}
+                disabled={submittingComments}
+                className="mt-4 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors disabled:bg-gray-400"
+              >
+                {submittingComments ? 'Sending...' : 'Send Feedback →'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Idea card sub-component ──────────────────────────────────────────────────
+
+function IdeaCard({
+  idea,
+  place,
+  comment,
+  onCommentChange,
+}: {
+  idea: TripIdea;
+  place: Place | undefined;
+  comment: string;
+  onCommentChange: (text: string) => void;
+}) {
+  if (!place) return null;
+  const isLodging = idea.category === 'HOTEL' || idea.category === 'AIRBNB';
+  const agentComments = idea.comments?.filter(c => c.author === 'AGENT') ?? [];
+
+  return (
+    <div className={`bg-white rounded-2xl border-2 overflow-hidden ${isLodging ? 'border-indigo-200' : 'border-gray-200'}`}>
+      {idea.photos?.[0] && (
+        <img src={idea.photos[0].url} alt="" className="w-full h-44 object-cover" />
+      )}
+      <div className="p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <span className="text-2xl flex-shrink-0">{CATEGORY_EMOJI[idea.category] || '📍'}</span>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-bold text-gray-900">{place.displayName}</h4>
+            <p className="text-sm text-gray-500">{place.formattedAddress}</p>
+            {place.rating && <p className="text-xs text-gray-400 mt-0.5">⭐ {place.rating}</p>}
+            <div className="flex flex-wrap gap-2 mt-1.5">
+              {isLodging && idea.day && idea.endDay && (
+                <span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 text-indigo-700">
+                  {idea.endDay - idea.day} night{idea.endDay - idea.day !== 1 ? 's' : ''}
+                </span>
+              )}
+              {idea.price && (
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 font-medium">{idea.price}</span>
+              )}
+              {idea.time && (
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
+                  {(() => { const [h, m] = idea.time.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; })()}
+                </span>
+              )}
+            </div>
           </div>
         </div>
+
+        {idea.agentNotes && (
+          <div className="mb-4 p-3 bg-blue-50 rounded-xl border-l-4 border-blue-400">
+            <p className="text-xs font-semibold text-blue-600 mb-1">Why we recommend this:</p>
+            <p className="text-sm text-gray-700 leading-relaxed">{idea.agentNotes}</p>
+          </div>
+        )}
+
+        {agentComments.length > 0 && agentComments.map((c, i) => (
+          <div key={i} className="mb-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
+            <p className="text-xs font-semibold text-amber-600 mb-1">Note from your agent:</p>
+            <p className="text-sm text-gray-700">{c.text}</p>
+          </div>
+        ))}
+
+        <div className="flex gap-3 mb-4 text-sm">
+          {idea.externalUrl ? (
+            <a href={idea.externalUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View Property →</a>
+          ) : (
+            <a href={place.googleMapsUri} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View on Google Maps →</a>
+          )}
+        </div>
+
+        <textarea
+          value={comment}
+          onChange={e => onCommentChange(e.target.value)}
+          placeholder="Leave a comment — questions, 'love it!', or anything else..."
+          rows={2}
+          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-900 placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 focus:bg-white"
+        />
       </div>
     </div>
   );

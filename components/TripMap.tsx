@@ -21,7 +21,7 @@ interface TripIdea {
   endDay: number | null;
   mealSlot: string | null;
   agentNotes: string | null;
-  status: string;
+  status?: string;
 }
 
 interface TripMapProps {

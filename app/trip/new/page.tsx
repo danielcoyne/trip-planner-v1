@@ -28,6 +28,7 @@ export default function NewTripPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: formData.get("name"),
+        clientName: formData.get("clientName") || null,
         startDate: toYMD(startDate),
         endDate: toYMD(endDate),
         requirements: formData.get("requirements"),
@@ -56,7 +57,18 @@ export default function NewTripPage() {
             name="name"
             required
             className="w-full border rounded px-3 py-2"
-            placeholder="Sarah's European Adventure"
+            placeholder="Italy Honeymoon 2026"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Client Name <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <input
+            name="clientName"
+            className="w-full border rounded px-3 py-2"
+            placeholder="Sarah & James"
           />
         </div>
 
